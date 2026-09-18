@@ -15,7 +15,7 @@
 // v3.22: swapped the placeholder GitHub URL for a real contact address -
 // there's no public repo for this project (yet), and an honest email is
 // worth more here than a URL that doesn't resolve to anything relevant.
-static const char* kUserAgent = "FlightEye-ESP32/3.23 (genereynolds.uk+flighteye@gmail.com)";
+static const char* kUserAgent = "FlightEye-ESP32/3.24 (genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";

@@ -25,18 +25,34 @@ static const char SETUP_HTML[] PROGMEM = R"HTML(
 <!doctype html><meta name=viewport content="width=device-width,initial-scale=1">
 <title>Flight Eye setup</title>
 <style>
+/* v3.24: border-box everywhere - without it, an input/button's own padding
+   and border add ON TOP of its 100% width instead of being absorbed by it,
+   so it renders a few px wider than its container. Barely visible on a wide
+   desktop window; on a narrow phone screen (this page's main audience,
+   since it's what loads when you join the FlightEye-Setup Wi-Fi network)
+   that overflow is proportionally bigger and the fields visibly don't line
+   up with the edges of the page/labels above them. */
+*{box-sizing:border-box}
 body{background:#0e1217;color:#c6ccd4;font-family:system-ui;margin:0;padding:22px}
 h1{font-size:19px}
 label{display:block;margin:14px 0 5px;font-size:13px}
 select,input{width:100%;padding:11px;border-radius:9px;border:1px solid #2c3742;background:#0c1116;color:#fff;font-size:15px}
 button{margin-top:20px;width:100%;padding:13px;border:0;border-radius:9px;background:#e8a33d;color:#160f04;font-weight:700;font-size:15px}
+.pwrap{position:relative}
+.pwrap input{padding-right:64px}
+#peek{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:auto;margin:0;
+      padding:6px 10px;font-size:12px;font-weight:600;border-radius:6px;
+      background:#1b222a;color:#c6ccd4;border:1px solid #2c3742}
 .m{font-family:monospace;color:#5f6b78;font-size:12px;margin-top:16px}
 </style>
 <h1>Flight Eye setup</h1>
 <label>Your Wi-Fi network</label>
 <select id=ssid></select>
 <label>Password</label>
-<input id=pass type=password placeholder="Wi-Fi password">
+<div class=pwrap>
+  <input id=pass type=password placeholder="Wi-Fi password" autocomplete=off autocapitalize=off autocorrect=off spellcheck=false>
+  <button type=button id=peek onclick=togglePeek()>Show</button>
+</div>
 <button onclick=save()>Connect</button>
 <p class=m id=msg>Loading networks...</p>
 <script>
@@ -46,6 +62,12 @@ fetch('/scan').then(r=>r.json()).then(n=>{
                          : '<option>(none found)</option>';
   document.getElementById('msg').textContent = n.length+' networks found';
 });
+function togglePeek(){
+  var p=document.getElementById('pass'), b=document.getElementById('peek');
+  var show = p.type==='password';
+  p.type = show ? 'text' : 'password';
+  b.textContent = show ? 'Hide' : 'Show';
+}
 function save(){
   document.getElementById('msg').textContent='Saving and rebooting...';
   fetch('/save-wifi',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -214,7 +236,7 @@ tr.row:active td{background:#1b232c}
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
 
 <div class=card><h2>About</h2>
-  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.23</div>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.24</div>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
 </div>
 

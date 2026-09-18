@@ -6,12 +6,35 @@
 // firmware is actually flashed. Regenerated whenever README.md changes -
 // this file is generated, don't hand-edit it (edit README.md instead).
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.23 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.24 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.24
+
+**Fix: setup portal stuck in an endless "let's get set up" loop**
+- v3.23's new OTA partition table renamed the LittleFS storage partition
+  from "spiffs" to "littlefs" for readability. Turns out Arduino's
+  `LittleFS.begin()` looks for a partition literally named "spiffs" by
+  default, regardless of what filesystem actually lives there - so
+  LittleFS could never mount, Wi-Fi credentials could never actually save,
+  and every reboot looked like a first boot. Renamed it back to "spiffs"
+  in `partitions_ota_4mb.csv` (offsets/sizes unchanged). If you flashed
+  v3.23 and got stuck on the setup screen, this is why.
+
+**Setup page: "Show" button on the Wi-Fi password field**
+- Lets you peek at what you've typed before hitting Connect, same as most
+  Wi-Fi password prompts elsewhere.
+
+**Setup page: fixed field alignment on mobile**
+- The network/password fields were rendering slightly wider than their
+  container on narrow screens (a `box-sizing` default, not a phone-specific
+  bug - just far more visible on a phone-width page, which is what this
+  screen mostly gets viewed on, since it only ever loads when you're
+  joining the FlightEye-Setup Wi-Fi network to configure the device).
 
 ## New in v3.23
 
