@@ -3,8 +3,8 @@
 
 // GitHub repo that publishes Flight Eye firmware releases.
 // *** Set OTA_GH_OWNER to your GitHub username once the repo exists. ***
-#define OTA_GH_OWNER   "GeneReynolds"
-#define OTA_GH_REPO    "flighteye-fw"
+#define OTA_GH_OWNER   "flighteye-admin"
+#define OTA_GH_REPO    "flighteye-admin"
 
 // Must exactly match the asset name the release workflow attaches
 // (see .github/workflows/release.yml).
