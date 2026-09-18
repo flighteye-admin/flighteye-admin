@@ -1,0 +1,19 @@
+# Flight Eye OTA partition table - 4MB flash.
+#
+# Two ~1.94MB app slots (ota_0 / ota_1) instead of huge_app.csv's single
+# 3MB slot: OTA works by writing the *new* image into whichever slot isn't
+# currently running, then switching to it on success. With only one app
+# slot (the old huge_app.csv) there is nowhere for Update.h to write a new
+# image at all. LittleFS is trimmed to 64KB - config.json is a few KB, so
+# huge_app.csv's 896KB spiffs region was never needed.
+#
+# NOTE: this table assumes 4MB flash (standard for the ESP32-2432S028R /
+# "CYD"). If your board turns out to have more, that's fine, this table
+# still works - it just won't use the extra space.
+#
+# Name,     Type, SubType, Offset,   Size,     Flags
+nvs,        data, nvs,     0x9000,   0x5000,
+otadata,    data, ota,     0xe000,   0x2000,
+app0,       app,  ota_0,   0x10000,  0x1F0000,
+app1,       app,  ota_1,   0x200000, 0x1F0000,
+littlefs,   data, spiffs,  0x3F0000, 0x10000,

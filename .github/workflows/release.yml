@@ -1,0 +1,37 @@
+name: Build & release firmware
+
+# Push a tag like v3.20 to build the firmware and publish it as a GitHub
+# Release with the .bin attached. Devices poll the "latest release" API and
+# pull that asset automatically (see src/ota.cpp) - so cutting a release
+# here is the entire "push an update" step.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO
+        run: pip install -U platformio
+
+      - name: Build firmware (env:cyd)
+        run: pio run -e cyd
+
+      # Name must match OTA_ASSET_NAME in src/ota.h exactly - that's how the
+      # device picks the right file out of the release's asset list.
+      - name: Stage release asset
+        run: cp .pio/build/cyd/firmware.bin flighteye-firmware.bin
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: flighteye-firmware.bin
+          generate_release_notes: true
