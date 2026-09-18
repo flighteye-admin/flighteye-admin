@@ -1,6 +1,14 @@
+#pragma once
+#include <Arduino.h>
+
+// The full text of README.md, HTML-escaped and embedded at build time so the
+// admin page's "View README / changelog" button always matches whatever
+// firmware is actually flashed. Regenerated whenever README.md changes -
+// this file is generated, don't hand-edit it (edit README.md instead).
+static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
 # Flight Eye — firmware v3.23 (ESP32 CYD / ESP32-2432S028R)
 
-## Build & flash
+## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
@@ -14,7 +22,7 @@ or tap the device screen for a QR code that opens it directly).
   the `flighteye-firmware.bin` asset and flashes it via `Update.h`, then
   reboots. No manual button or admin-page trigger - it's fully automatic.
 - Cutting a release is the entire "ship an update" step from then on: bump
-  `FW_VERSION` in `src/config.h`, commit, `git tag v3.24 && git push --tags`.
+  `FW_VERSION` in `src/config.h`, commit, `git tag v3.24 &amp;&amp; git push --tags`.
   `.github/workflows/release.yml` builds the firmware and attaches the
   binary to the GitHub Release automatically.
 - Admin page's status feed now includes the running version and OTA state
@@ -265,8 +273,8 @@ or tap the device screen for a QR code that opens it directly).
 ## New in v3.12
 
 **Radar screen**
-- A fourth tap on the display (flight card -> QR/device info -> LED key ->
-  **radar** -> back to the flight card) shows a north-up radar sweep: aircraft
+- A fourth tap on the display (flight card -&gt; QR/device info -&gt; LED key -&gt;
+  **radar** -&gt; back to the flight card) shows a north-up radar sweep: aircraft
   within the "Radius km" range set on the admin page, plotted by bearing and
   distance from home, colour-coded the same as the LED "aircraft class" mode,
   with a short heading tick on each blip.
@@ -311,7 +319,7 @@ in Chrome (no route to the address at all), not a timeout.
 
 **Admin page no longer depends on internet access to be usable**
 - The map widget (Leaflet + OpenStreetMap tiles) was previously loaded as a
-  blocking `<head>` tag. If that fetch was slow or blocked - common on phones
+  blocking `&lt;head&gt;` tag. If that fetch was slow or blocked - common on phones
   behind ad-block DNS, MDM/content filtering, or an isolated guest/IoT Wi-Fi
   network - the **entire admin page** would stall before status, log,
   filters, or reset controls ever appeared, even though none of those need
@@ -346,8 +354,8 @@ in Chrome (no route to the address at all), not a timeout.
 ## From v3.3
 
 **Aircraft names**
-- ~190 ICAO type codes now spell out in full ("P28A" -> "Piper PA-28 Cherokee",
-  "B744" -> "Boeing 747-400"). The table lives in flash, not RAM: ~6 KB, zero heap cost.
+- ~190 ICAO type codes now spell out in full ("P28A" -&gt; "Piper PA-28 Cherokee",
+  "B744" -&gt; "Boeing 747-400"). The table lives in flash, not RAM: ~6 KB, zero heap cost.
 - Shown on the operator line for GA/private traffic, and in the footer for airliners.
 
 **Traffic list on the admin page**
@@ -376,10 +384,11 @@ in Chrome (no route to the address at all), not a timeout.
 - Auto-reconnect if Wi-Fi drops while running.
 
 **Labels**
-- "unknown operator" -> aircraft name, or "Private / GA".
-- "? to ?" -> "no route filed" for GA traffic.
+- "unknown operator" -&gt; aircraft name, or "Private / GA".
+- "? to ?" -&gt; "no route filed" for GA traffic.
 
 ## Still to come
 - "Inbound" featured rule (currently behaves as nearest)
 - Touch calibration screen reachable from the admin page
 - SD-card flight history
+)FERM";

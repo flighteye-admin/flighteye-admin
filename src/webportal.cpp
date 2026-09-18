@@ -7,6 +7,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
+#include "readme_content.h"
 
 static AsyncWebServer server(80);
 static DNSServer dns;
@@ -57,6 +58,21 @@ function save(){
 // ---------------------------------------------------------------------------
 // Admin page (STA mode)
 // ---------------------------------------------------------------------------
+// v3.21: standalone "View README / changelog" page. Split into head/tail so
+// the (large) escaped README body from readme_content.h can be sandwiched
+// between them without a second copy of it living in this file too.
+static const char README_PAGE_HEAD[] PROGMEM = R"HTML(<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Flight Eye - README</title>
+<style>
+body{background:#0e1217;color:#c6ccd4;font-family:system-ui;margin:0 auto;padding:18px;max-width:720px}
+a{color:#e8a33d;text-decoration:none;font-family:monospace;font-size:13px}
+pre{background:#151b22;border:1px solid #222b34;border-radius:12px;padding:16px;font-size:12px;line-height:1.6;color:#c6ccd4;white-space:pre-wrap;word-wrap:break-word;font-family:monospace}
+</style></head><body>
+<p><a href="/">&lt;- back to admin</a></p>
+<pre>)HTML";
+static const char README_PAGE_TAIL[] PROGMEM = "</pre></body></html>";
+
 static const char ADMIN_HTML[] PROGMEM = R"HTML(
 <!doctype html><html><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
@@ -196,6 +212,11 @@ tr.row:active td{background:#1b232c}
 </div>
 
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
+
+<div class=card><h2>About</h2>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.23</div>
+  <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
+</div>
 
 <div class=card><h2>Reset</h2>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick=calibrate()>Calibrate touchscreen</button>
@@ -716,6 +737,13 @@ void portalBeginSTA(){
   });
   server.on("/api/status",HTTP_GET,handleStatus);
   server.on("/api/config",HTTP_GET,handleGetConfig);
+  server.on("/readme",HTTP_GET,[](AsyncWebServerRequest* r){
+    String page; page.reserve(sizeof(README_PAGE_HEAD)+sizeof(kReadmeMdEscaped)+sizeof(README_PAGE_TAIL));
+    page += FPSTR(README_PAGE_HEAD);
+    page += FPSTR(kReadmeMdEscaped);
+    page += FPSTR(README_PAGE_TAIL);
+    r->send(200,"text/html",page);
+  });
   server.on("/api/log",HTTP_GET,[](AsyncWebServerRequest* r){
     r->send(200,"application/json",logAsJson());
   });

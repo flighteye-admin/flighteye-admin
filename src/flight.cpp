@@ -9,6 +9,14 @@
 #include <math.h>
 #include <time.h>
 
+// Sent on every outbound HTTP request. A bare "no User-Agent" or a generic
+// placeholder one gets 403'd by some of these free aggregators (adsb.lol
+// spells out why: "User-Agent too generic; include valid contact info").
+// v3.22: swapped the placeholder GitHub URL for a real contact address -
+// there's no public repo for this project (yet), and an honest email is
+// worth more here than a URL that doesn't resolve to anything relevant.
+static const char* kUserAgent = "FlightEye-ESP32/3.23 (genereynolds.uk+flighteye@gmail.com)";
+
 static int    s_count = 0;
 static String s_source = "-";
 static std::vector<TrafficRow> s_traffic;
@@ -144,6 +152,7 @@ static void enrich(Flight& f){
   HTTPClient http; http.setConnectTimeout(4000); http.setTimeout(4000);
   String url="https://api.adsbdb.com/v0/callsign/"+f.callsign;
   if(!http.begin(c,url)){ f.airline=airlineFromPrefix(f.callsign); return; }
+  http.addHeader("User-Agent",kUserAgent);
   int code=http.GET();
   if(code==200){
     JsonDocument d;
@@ -199,8 +208,19 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http; http.setConnectTimeout(5000); http.setTimeout(7000);
   if(!http.begin(c,url)) return -1;
+  http.addHeader("User-Agent",kUserAgent);
   int code=http.GET();
-  if(code!=200){ http.end(); logf("%s HTTP %d",src.name,code); return -1; }
+  if(code!=200){
+    // v3.21: log the response body too, not just the status - a bare "HTTP 403"
+    // doesn't say whether that's a generic block or the source telling us
+    // something specific (a few of these free aggregators return a plain-text
+    // reason, e.g. asking you to register a project before they'll serve you).
+    String body=http.getString();
+    body.replace('\r',' '); body.replace('\n',' ');
+    http.end();
+    logf("%s HTTP %d: %s",src.name,code,body.c_str());
+    return -1;
+  }
 
   // Guard against HTML error pages / truncated bodies being fed to the parser.
   String ctype = http.header("Content-Type");
@@ -321,6 +341,7 @@ static bool fetchByIdent(const String& ident, Flight& out){
     WiFiClientSecure c; c.setInsecure();
     HTTPClient http; http.setConnectTimeout(5000); http.setTimeout(7000);
     if(http.begin(c,url)){
+      http.addHeader("User-Agent",kUserAgent);
       int code=http.GET();
       if(code==200){ bool got=parseOne(http,out); http.end(); if(got) return true; }
       else http.end();
@@ -335,6 +356,7 @@ static bool fetchByIdent(const String& ident, Flight& out){
       WiFiClientSecure c; c.setInsecure();
       HTTPClient http; http.setConnectTimeout(5000); http.setTimeout(7000);
       if(!http.begin(c,url)) continue;
+      http.addHeader("User-Agent",kUserAgent);
       int code=http.GET();
       if(code==200){
         bool got = parseOne(http,out);
@@ -407,7 +429,7 @@ bool pollTraffic(){
   Source srcs[] = {
     {"airplanes.live","https://api.airplanes.live/v2/point/%.4f/%.4f/%.0f",         cfg.sAirplanesLive},
     {"adsb.lol",      "https://api.adsb.lol/v2/point/%.4f/%.4f/%.0f",               cfg.sAdsbLol},
-    {"adsb.fi",       "https://opendata.adsb.fi/api/v2/lat/%.4f/lon/%.4f/dist/%.0f",cfg.sAdsbFi},
+    {"adsb.fi",       "https://opendata.adsb.fi/api/v3/lat/%.4f/lon/%.4f/dist/%.0f",cfg.sAdsbFi},
     {"adsb.one",      "https://api.adsb.one/v2/point/%.4f/%.4f/%.0f",               cfg.sAdsbOne},
   };
   const int N = sizeof(srcs)/sizeof(srcs[0]);
