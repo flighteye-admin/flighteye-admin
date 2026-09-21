@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26, and
 // adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.29 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.30 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -145,43 +145,103 @@ static const char* classify(const String& cat, const String& type,
   return "airliner";
 }
 
-// ---- route enrichment via adsbdb (free), cached by callsign ----------------
+// ---- route enrichment: adsbdb.com first, hexdb.io as a fallback ------------
+// (both free, both keyless), cached by callsign so this only ever runs once
+// per aircraft actually shown on screen or locked - never once per poll for
+// everything in range.
 static String s_key, s_org, s_dst, s_orgCity, s_dstCity, s_air, s_iata;
 static void applyCache(Flight& f){
   f.originIata=s_org; f.destIata=s_dst; f.originCity=s_orgCity; f.destCity=s_dstCity;
   if(s_air.length())  f.airline=s_air;
   if(s_iata.length()) f.csIata=s_iata;
 }
+
+// v3.30: adsbdb doesn't have every callsign - it's the fuller source when it
+// does have a hit (airline name, IATA-format callsign too), but "no route
+// filed" from adsbdb sometimes just means adsbdb hasn't logged this one,
+// not that no route exists. hexdb.io is a second, differently-sourced free
+// route database; when it has the callsign it only gives ICAO airport
+// codes, so a couple of follow-up airport lookups turn those into the
+// IATA code + name the display wants. Only reached when adsbdb came back
+// empty, so the extra requests are rare, not per-poll.
+static bool hexdbAirport(const String& icao, String& iata, String& name){
+  if(icao.length()!=4) return false;
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http; http.setConnectTimeout(4000); http.setTimeout(4000);
+  if(!http.begin(c,"https://hexdb.io/api/v1/airport/icao/"+icao)) return false;
+  http.addHeader("User-Agent",kUserAgent);
+  bool ok=false;
+  if(http.GET()==200){
+    JsonDocument d;
+    if(!deserializeJson(d,http.getStream())){
+      iata=d["iata"]|""; name=d["airport"]|"";
+      ok = iata.length()>0 || name.length()>0;
+    }
+  }
+  http.end();
+  return ok;
+}
+static bool hexdbEnrich(Flight& f){
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http; http.setConnectTimeout(4000); http.setTimeout(4000);
+  if(!http.begin(c,"https://hexdb.io/api/v1/route/icao/"+f.callsign)) return false;
+  http.addHeader("User-Agent",kUserAgent);
+  String oIcao,dIcao;
+  if(http.GET()==200){
+    JsonDocument d;
+    if(!deserializeJson(d,http.getStream())){
+      String route=d["route"]|"";
+      int dash=route.indexOf('-');
+      if(dash>0){ oIcao=route.substring(0,dash); dIcao=route.substring(dash+1); }
+    }
+  }
+  http.end();
+  if(oIcao.length()!=4 && dIcao.length()!=4) return false;
+
+  String oIata,oName,dIata,dName;
+  hexdbAirport(oIcao,oIata,oName);
+  hexdbAirport(dIcao,dIata,dName);
+  if(!oIata.length() && !dIata.length()) return false;
+
+  f.originIata=oIata; f.destIata=dIata;
+  f.originCity=oName; f.destCity=dName;
+  return true;
+}
+
 static void enrich(Flight& f){
   if(f.callsign.length()<3){ if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign); return; }
   if(f.callsign==s_key){ applyCache(f); return; }
+
+  bool gotRoute=false;
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http; http.setConnectTimeout(4000); http.setTimeout(4000);
   String url="https://api.adsbdb.com/v0/callsign/"+f.callsign;
-  if(!http.begin(c,url)){ f.airline=airlineFromPrefix(f.callsign); return; }
-  http.addHeader("User-Agent",kUserAgent);
-  int code=http.GET();
-  if(code==200){
-    JsonDocument d;
-    if(!deserializeJson(d,http.getStream())){
-      auto fr=d["response"]["flightroute"];
-      f.originIata =fr["origin"]["iata_code"]|"";
-      f.destIata   =fr["destination"]["iata_code"]|"";
-      f.originCity =fr["origin"]["municipality"]|"";
-      f.destCity   =fr["destination"]["municipality"]|"";
-      String al  =fr["airline"]["name"]|"";
-      if(!al.length()) al=airlineFromPrefix(f.callsign);
-      if(al.length()) f.airline=al;
-      String iata=fr["callsign_iata"]|"";  if(iata.length()) f.csIata=iata;
-      s_key=f.callsign; s_org=f.originIata; s_dst=f.destIata;
-      s_orgCity=f.originCity; s_dstCity=f.destCity; s_air=f.airline; s_iata=f.csIata;
+  if(http.begin(c,url)){
+    http.addHeader("User-Agent",kUserAgent);
+    int code=http.GET();
+    if(code==200){
+      JsonDocument d;
+      if(!deserializeJson(d,http.getStream())){
+        auto fr=d["response"]["flightroute"];
+        f.originIata =fr["origin"]["iata_code"]|"";
+        f.destIata   =fr["destination"]["iata_code"]|"";
+        f.originCity =fr["origin"]["municipality"]|"";
+        f.destCity   =fr["destination"]["municipality"]|"";
+        String al  =fr["airline"]["name"]|"";
+        if(al.length()) f.airline=al;
+        String iata=fr["callsign_iata"]|"";  if(iata.length()) f.csIata=iata;
+        gotRoute = f.originIata.length()>0 || f.destIata.length()>0;
+      }
     }
-  } else {
-    s_key=f.callsign; s_org=""; s_dst=""; s_orgCity=""; s_dstCity="";
-    s_air=airlineFromPrefix(f.callsign); s_iata="";
-    f.airline=s_air;
+    http.end();
   }
-  http.end();
+  if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign);
+
+  if(!gotRoute && hexdbEnrich(f)) gotRoute=true;
+
+  s_key=f.callsign; s_org=f.originIata; s_dst=f.destIata;
+  s_orgCity=f.originCity; s_dstCity=f.destCity; s_air=f.airline; s_iata=f.csIata;
+  (void)gotRoute;
 }
 
 // ---- sources ---------------------------------------------------------------

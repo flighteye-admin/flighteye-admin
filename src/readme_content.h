@@ -1,10 +1,33 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.29 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.30 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.30
+
+**Radar screen: proper aircraft glyphs, bigger per-aircraft text**
+- Each blip on the radar screen was a 3px dot with a short 7px tick for
+  heading - now it's a small heading-aligned plane shape (fuselage, wings,
+  tailplane), still drawn with a handful of lines so it's cheap enough to
+  redraw every tick for several aircraft at once.
+- The callsign/altitude label next to each blip was using the smallest
+  built-in font (the same one as the N/S/E/W compass marks) - bumped up a
+  size so it's actually easy to read at a glance, with the label spacing
+  widened to match.
+
+**Route lookup: hexdb.io as a fallback when adsbdb has nothing**
+- "- en route -" sometimes showed even for a locked/tracked aircraft, not
+  because it genuinely had no filed route, but because adsbdb.com simply
+  hadn't logged that particular callsign. `enrich()` now tries hexdb.io -
+  a second, differently-sourced free route database - whenever adsbdb
+  comes back empty, resolving the ICAO airport codes it returns into the
+  IATA code + airport name the display already shows. Only runs for
+  whichever single aircraft is actually on screen or locked (same as the
+  existing adsbdb call), so this doesn't add per-poll traffic - just a
+  couple of extra requests on the rarer occasions the first source misses.
 
 ## New in v3.29
 

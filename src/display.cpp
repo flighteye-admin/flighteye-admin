@@ -662,6 +662,33 @@ static uint16_t radarBlipColour(const RadarBlip& b){
   return TFT_BLUE;                                       // airliner / cargo
 }
 
+// v3.30: a small heading-aligned aircraft glyph (fuselage + wings +
+// tailplane) instead of a dot with a short tick - still just a handful of
+// drawLine() calls (no bitmap/sprite), so it's cheap enough to redraw every
+// tick for several blips at once. trackDeg 0 = up (matches radarXY's
+// bearing convention), increasing clockwise.
+static void drawPlaneGlyph(int sx,int sy,int trackDeg,uint16_t c){
+  double rad = radians((double)trackDeg);
+  double s = sin(rad), co = cos(rad);
+  auto rot=[&](double along,double across,int& x,int& y){
+    x = sx + (int)lround(along*s + across*co);
+    y = sy - (int)lround(along*co - across*s);
+  };
+  int noseX,noseY, tailX,tailY, wingLX,wingLY, wingRX,wingRY,
+      tailLX,tailLY, tailRX,tailRY;
+  rot( 9, 0, noseX,noseY);
+  rot(-6, 0, tailX,tailY);
+  rot( 0,-6, wingLX,wingLY);
+  rot( 0, 6, wingRX,wingRY);
+  rot(-5,-3, tailLX,tailLY);
+  rot(-5, 3, tailRX,tailRY);
+
+  tft.drawLine(tailX,tailY,noseX,noseY,c);       // fuselage
+  tft.drawLine(wingLX,wingLY,wingRX,wingRY,c);   // wings
+  tft.drawLine(tailLX,tailLY,tailRX,tailRY,c);   // tailplane
+  tft.fillCircle(noseX,noseY,1,c);               // nose, a touch bolder
+}
+
 void drawRadar(const std::vector<RadarBlip>& blips, float rangeKm, bool imperial){
   tft.fillScreen(TFT_BLACK);
   int cx,cy,rPix; radarGeom(cx,cy,rPix);
@@ -695,16 +722,14 @@ void drawRadar(const std::vector<RadarBlip>& blips, float rangeKm, bool imperial
   // home position
   tft.fillCircle(cx,cy,3,COL_VALUE);
 
-  // aircraft, each with a small callsign label (same tiny font as "N/S/E/W"
-  // and the range label above, since a full-size font would collide with
-  // neighbouring blips on a screen this size)
+  // aircraft: a heading-aligned plane glyph, plus a callsign/altitude label
+  // in the next size up from the N/S/E/W and range chrome above, so the
+  // per-aircraft data is actually easy to read at a glance. Still small
+  // enough that two or three nearby blips don't run their labels together.
   for(const auto& b : blips){
     int sx,sy; radarXY(b.distKm,b.bearingDeg,cx,cy,rPix,rangeKm,sx,sy);
     uint16_t c = radarBlipColour(b);
-    tft.fillCircle(sx,sy,3,c);
-    double rad = radians((double)b.track);
-    int hx = sx+(int)lround(7*sin(rad)), hy = sy-(int)lround(7*cos(rad));
-    tft.drawLine(sx,sy,hx,hy,c);
+    drawPlaneGlyph(sx,sy,b.track,c);
 
     if(b.callsign.length()){
       // callsign, then flight level just below it - blips are never
@@ -715,13 +740,13 @@ void drawRadar(const std::vector<RadarBlip>& blips, float rangeKm, bool imperial
       else snprintf(alt,sizeof(alt), imperial?"%dft":"%dm",
                     imperial? b.altFt : (int)(b.altFt*0.3048));
 
-      bool nearRight = sx > W()-46;
+      bool nearRight = sx > W()-58;
       tft.setTextDatum(nearRight? MR_DATUM : ML_DATUM);
-      int tx = nearRight? sx-6 : sx+6;
+      int tx = nearRight? sx-9 : sx+9;
       tft.setTextColor(COL_VALUE,TFT_BLACK);
-      tft.drawString(b.callsign,tx,sy-5,1);
+      tft.drawString(b.callsign,tx,sy-9,2);
       tft.setTextColor(COL_CITY,TFT_BLACK);
-      tft.drawString(alt,tx,sy+5,1);
+      tft.drawString(alt,tx,sy+9,2);
     }
   }
 
