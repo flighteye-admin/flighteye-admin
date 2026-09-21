@@ -1,9 +1,25 @@
-# Flight Eye — firmware v3.26 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.27 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build & flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.27
+
+**Version bump only - same code as the actual v3.26 content**
+- v3.26 was flashed to the device by USB before its later fixes (adsb.lol
+  User-Agent, airplanes.live removal, log wording) were made, so those
+  fixes only exist in the v3.26 *release* on GitHub, not on the device.
+  Since a device already running "3.26" won't treat another release also
+  labelled "3.26" as newer (OTA only moves forward), this version exists
+  purely so the already-flashed device has something to actually update
+  to. No functional changes beyond what v3.26 already contains.
+- Also fixed the release pipeline itself while cutting v3.26's release:
+  the tag-match pattern only accepted three-part tags (v3.26.0) and never
+  matched this project's two-part ones, and the workflow's default
+  permissions couldn't publish a Release even once it did trigger. Both
+  fixed - this is the first version to go out as a real, working release.
 
 ## New in v3.26
 

@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26 - see
 // the "airplanes.live removed" note in README.md for why.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.26 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.27 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
