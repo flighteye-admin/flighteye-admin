@@ -5,8 +5,8 @@
 
 // Bumped whenever a release goes out. Compared (as major.minor.patch) against
 // GitHub release tag names by ota.cpp - keep it in sync with the git tag you
-// push (tag "v3.24" <-> FW_VERSION "3.24").
-#define FW_VERSION "3.24"
+// push (tag "v3.25" <-> FW_VERSION "3.25").
+#define FW_VERSION "3.25"
 
 // Everything the admin portal can change, persisted to /config.json in LittleFS.
 struct Config {
@@ -15,6 +15,11 @@ struct Config {
   // location & tracking
   float  homeLat = 51.4700f, homeLon = -0.4543f;
   int    radiusKm = 30;
+  // v3.25: true once a home location has actually been saved (by hand, or
+  // via the auto-geolocate-on-first-setup below) - lets the admin page tell
+  // "never configured yet" apart from "deliberately left at the default",
+  // so the phone-location auto-fill only ever fires once, not on every visit.
+  bool   homeSet = false;
   String featured = "nearest";          // sort order: nearest | lowest
   int    pollSec    = 60;               // master traffic poll, 30..120
   int    dwellSec   = 8;                // seconds each aircraft stays on screen
@@ -52,6 +57,7 @@ struct Config {
   void toJson(JsonDocument& d) const {
     d["wifiSsid"]=wifiSsid;       d["wifiPass"]=wifiPass;
     d["homeLat"]=homeLat;         d["homeLon"]=homeLon;       d["radiusKm"]=radiusKm;
+    d["homeSet"]=homeSet;
     d["featured"]=featured;       d["refreshSec"]=refreshSec;
     d["pollSec"]=pollSec;         d["dwellSec"]=dwellSec;
     d["brightness"]=brightness;   d["rotation"]=rotation;
@@ -72,6 +78,7 @@ struct Config {
   void fromJson(JsonDocument& d) {
     wifiSsid=d["wifiSsid"]|wifiSsid;         wifiPass=d["wifiPass"]|wifiPass;
     homeLat=d["homeLat"]|homeLat;            homeLon=d["homeLon"]|homeLon;   radiusKm=d["radiusKm"]|radiusKm;
+    homeSet=d["homeSet"]|homeSet;
     featured=d["featured"]|featured;         refreshSec=d["refreshSec"]|refreshSec;
     pollSec=d["pollSec"]|pollSec;            dwellSec=d["dwellSec"]|dwellSec;
     if(pollSec<30) pollSec=30;  if(pollSec>120) pollSec=120;

@@ -164,6 +164,7 @@ tr.row:active td{background:#1b232c}
     <button id=useLoc2 onclick=useLoc()>Use my location</button>
   </div>
   <div class="st dim" style="font-size:11px;margin-bottom:8px">Pan the map to anywhere in the world, then tap "Use crosshairs" to track flights over that spot.</div>
+  <div id=geonote class=st style="font-size:11px;margin-bottom:8px;display:none;color:#e8a33d"></div>
   <div class=r><label>Centre latitude</label><input id=homeLat type=text></div>
   <div class=r><label>Centre longitude</label><input id=homeLon type=text></div>
   <div class=r><label>Radius km</label><input id=radiusKm type=range min=5 max=80><span id=radv class=st></span></div>
@@ -236,7 +237,7 @@ tr.row:active td{background:#1b232c}
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
 
 <div class=card><h2>About</h2>
-  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.24</div>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.25</div>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
 </div>
 
@@ -308,13 +309,17 @@ function useCross(){
   var b = el('useCross'); b.textContent = 'Centre set';
   setTimeout(function(){ b.textContent = 'Use crosshairs'; },1500);
 }
-function useLoc(){
+function useLoc(auto_){
   if(!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(function(p){
     el('homeLat').value = p.coords.latitude.toFixed(4);
     el('homeLon').value = p.coords.longitude.toFixed(4);
     if(map){ map.setView(coords(),11); redraw(true); }
-  });
+    if(auto_){
+      var n = el('geonote');
+      if(n){ n.textContent = 'No tracking centre saved yet - used your phone\'s current location as a starting point. Tap "Save changes" below to keep it, or set your own with the map first.'; n.style.display='block'; }
+    }
+  }, function(){ /* denied/unavailable - fine, the existing default stands */ });
 }
 
 function pad3(n){ n = String(n); while(n.length<3){ n = '0'+n; } return n; }
@@ -630,6 +635,11 @@ function load(){
     });
     cfgReady = true;
     tryInitMap();
+    // v3.25: nothing saved here yet on this device - use the phone's location
+    // as a starting point instead of the hardcoded factory default. Fires only
+    // while homeSet is still false (i.e. until the first real Save), so it
+    // never silently moves an already-configured tracking centre.
+    if(!c.homeSet) useLoc(true);
   });
 }
 
@@ -647,6 +657,7 @@ function save(){
       var b = el('save');
       b.textContent = 'Saved';
       setTimeout(function(){ b.textContent = 'Save changes'; },1200);
+      var n = el('geonote'); if(n) n.style.display = 'none';
     });
 }
 
@@ -818,7 +829,9 @@ void portalBeginSTA(){
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/config",
     [](AsyncWebServerRequest* r, JsonVariant j){
       JsonDocument d; d.set(j);
-      cfg.fromJson(d); cfg.save();
+      cfg.fromJson(d);
+      cfg.homeSet = true;   // any admin-page save from here on is a deliberate one
+      cfg.save();
       extern void applyLiveConfig();
       applyLiveConfig();
       logf("settings saved from admin page");

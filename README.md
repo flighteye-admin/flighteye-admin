@@ -1,9 +1,30 @@
-# Flight Eye — firmware v3.24 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.25 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build & flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.25
+
+**Confirmed: a lower-or-equal GitHub release is always ignored**
+- `ota.cpp`'s version check only ever treats a release as an update when its
+  tag is strictly newer (major.minor.patch) than the running `FW_VERSION`.
+  An equal or older "latest" release is logged as up to date and nothing
+  downloads - this was already the behaviour, just confirming it here.
+
+**Admin page: uses your phone's location as a starting point, once**
+- If this device has never had a tracking centre saved (a fresh device, or
+  straight after a factory reset), opening the admin page now asks your
+  phone/browser for its location and uses that as the starting point,
+  instead of the hardcoded factory default - no need to hunt for the "Use
+  my location" button on first use.
+- This only fires until the first real "Save changes" - once a tracking
+  centre has actually been saved, it's never silently overridden again, so
+  opening the admin page later while away from home (travelling, at work)
+  won't shift your tracking centre out from under you.
+- The "Use my location" / "Use crosshairs" buttons on the map still work
+  exactly as before for changing it deliberately at any time.
 
 ## New in v3.24
 
