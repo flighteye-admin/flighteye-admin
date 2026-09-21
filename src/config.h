@@ -34,7 +34,7 @@ struct Config {
   bool   fCommercial=true, fPrivate=false, fCargo=true,
          fMilitary=false, fHeli=false, fEmergency=true, fJumpEmerg=true;
   // data sources (all keyless / free community feeds)
-  bool   sAirplanesLive=true, sAdsbLol=true, sAdsbFi=true, sAdsbOne=false;   // adsb.one returns 403 for non-feeders
+  bool   sAdsbLol=true, sAdsbFi=true, sAdsbOne=false;   // adsb.one returns 403 for non-feeders; airplanes.live removed in v3.26 (feeder-only now)
   bool   mergeSources=true;             // true = query all enabled & merge; false = failover
   // lock
   bool   lockOn=false; String lockTarget;
@@ -65,7 +65,7 @@ struct Config {
     d["fCommercial"]=fCommercial; d["fPrivate"]=fPrivate;     d["fCargo"]=fCargo;
     d["fMilitary"]=fMilitary;     d["fHeli"]=fHeli;           d["fEmergency"]=fEmergency;
     d["fJumpEmerg"]=fJumpEmerg;
-    d["sAirplanesLive"]=sAirplanesLive; d["sAdsbLol"]=sAdsbLol;
+    d["sAdsbLol"]=sAdsbLol;
     d["sAdsbFi"]=sAdsbFi;         d["sAdsbOne"]=sAdsbOne;      d["mergeSources"]=mergeSources;
     d["lockOn"]=lockOn;           d["lockTarget"]=lockTarget;
     d["atcOn"]=atcOn;             d["atcVol"]=atcVol;
@@ -89,7 +89,7 @@ struct Config {
     fCommercial=d["fCommercial"]|fCommercial; fPrivate=d["fPrivate"]|fPrivate; fCargo=d["fCargo"]|fCargo;
     fMilitary=d["fMilitary"]|fMilitary;      fHeli=d["fHeli"]|fHeli;         fEmergency=d["fEmergency"]|fEmergency;
     fJumpEmerg=d["fJumpEmerg"]|fJumpEmerg;
-    sAirplanesLive=d["sAirplanesLive"]|sAirplanesLive; sAdsbLol=d["sAdsbLol"]|sAdsbLol;
+    sAdsbLol=d["sAdsbLol"]|sAdsbLol;
     sAdsbFi=d["sAdsbFi"]|sAdsbFi;            sAdsbOne=d["sAdsbOne"]|sAdsbOne;
     mergeSources=d["mergeSources"]|mergeSources;
     lockOn=d["lockOn"]|lockOn;               lockTarget=d["lockTarget"]|lockTarget;

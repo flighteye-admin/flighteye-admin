@@ -25,17 +25,19 @@ or tap the device screen for a QR code that opens it directly).
   a real public repo (since v3.23), that's the link:
   `FlightEye-ESP32/3.26 (+https://github.com/flighteye-admin/flighteye-admin; ...)`.
 
-**airplanes.live's 403 is very likely not fixable from this end**
-- Its error message ("Please contact us... include any links, a
-  description of the project") plus multiple reports elsewhere
-  (airplanes-live/api-archive being archived, other projects finding the
-  API "no longer publicly available" for non-feeders) point at this being
-  a deliberate access-control change, not a User-Agent problem. No amount
-  of header-tweaking is likely to clear it - the real options are emailing
-  them as asked, becoming a registered feeder (feeders get free access),
-  or just leaving "airplanes.live" unticked in Data sources on the admin
-  page. adsb.lol and adsb.fi are both free and open and don't need any of
-  that.
+**airplanes.live removed as a source entirely**
+- Confirmed: their free API is now feeder-only. Getting your own feed
+  counted requires buying/running receiver hardware (SDR dongle, antenna,
+  a always-on Pi or similar) - a real cost and commitment for what this
+  project needs, not just an email or a header tweak. Rather than leave a
+  permanently-403ing, unfixable source sitting in the code (and on the
+  admin page as a checkbox that does nothing useful), it's gone: removed
+  from both the area poll and the locked-aircraft lookup in flight.cpp,
+  the config field, and the admin page's Data sources list.
+- adsb.lol and adsb.fi remain, both free and open, no feeder requirement.
+  If that ever stops being enough traffic, adsb.one is already wired up
+  (off by default - same free-tier 403 story) and could be a third
+  free-tier option to revisit.
 
 **Log: distinguish "genuinely 0 aircraft" from "deduped"**
 - A source that's the first one to succeed in a poll and finds nothing no

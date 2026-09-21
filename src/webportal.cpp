@@ -197,7 +197,6 @@ tr.row:active td{background:#1b232c}
 
 <div class=card><h2>Data sources <span class=free>all free, no keys</span></h2>
   <div class=r><label>Merge all sources</label><input id=mergeSources type=checkbox></div>
-  <div class=r><label>airplanes.live</label><input id=sAirplanesLive type=checkbox></div>
   <div class=r><label>adsb.lol</label><input id=sAdsbLol type=checkbox></div>
   <div class=r><label>adsb.fi</label><input id=sAdsbFi type=checkbox></div>
   <div class=r><label>adsb.one</label><input id=sAdsbOne type=checkbox></div>
@@ -255,7 +254,7 @@ var NUM = ["radiusKm","refreshSec","brightness","rotation","pollSec","dwellSec"]
 var FLOATS = ["homeLat","homeLon"];
 var F = ["homeLat","homeLon","radiusKm","featured","pollSec","dwellSec","brightness","rotation",
          "imperial","callsignIata","fCommercial","fCargo","fPrivate","fMilitary","fHeli",
-         "fEmergency","fJumpEmerg","sAirplanesLive","sAdsbLol","sAdsbFi","sAdsbOne",
+         "fEmergency","fJumpEmerg","sAdsbLol","sAdsbFi","sAdsbOne",
          "mergeSources","lockOn","lockTarget","ledMode","ledNightOff",
          "useStaticIp","staticIp","staticGw","staticMask"];
 
