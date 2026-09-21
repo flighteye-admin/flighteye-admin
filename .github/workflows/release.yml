@@ -16,6 +16,12 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    # This repo's default GITHUB_TOKEN permissions are read-only, so without
+    # this the build succeeds but "Create GitHub Release" 403s trying to
+    # actually publish it. Scoped to just this job rather than flipping the
+    # whole repo's default to write.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
