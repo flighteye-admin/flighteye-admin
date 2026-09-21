@@ -16,4 +16,14 @@ nvs,        data, nvs,     0x9000,   0x5000,
 otadata,    data, ota,     0xe000,   0x2000,
 app0,       app,  ota_0,   0x10000,  0x1F0000,
 app1,       app,  ota_1,   0x200000, 0x1F0000,
-spiffs,     data, spiffs,  0x3F0000, 0x10000,   # name MUST be "spiffs" - Arduino's LittleFS.begin() looks up a partition by that literal label by default, not by subtype alone
+
+# The name below MUST be exactly "spiffs" - Arduino's LittleFS.begin()
+# looks up a partition by that literal label by default, regardless of
+# what filesystem is actually mounted there (a historical quirk of the
+# library, not a subtype thing). This is the exact bug fixed in v3.24 -
+# don't rename it again. Also: ESP-IDF's partition-table CSV does NOT
+# support an inline "# comment" trailing a data row (unlike most CSV
+# formats) - it reads everything after the last comma as the literal
+# Flags value, so a trailing comment there is a build error, not a
+# no-op. Comments must be on their own line, like this one.
+spiffs,     data, spiffs,  0x3F0000, 0x10000,
