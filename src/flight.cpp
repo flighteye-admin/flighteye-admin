@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26 - see
 // the "airplanes.live removed" note in README.md for why.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.27 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.28 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -233,14 +233,22 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
   String ctype = http.header("Content-Type");
   if(ctype.length() && ctype.indexOf("json")<0){ http.end(); return 0; }
 
+  // v3.28: buffer the raw body instead of streaming straight into the parser,
+  // so that if this source ends up adding zero aircraft we can log a snippet
+  // of what it actually sent back. A source silently soft-blocking a request
+  // (200 OK, but an empty "ac") looks identical to a genuinely quiet sky in
+  // every log line we had before this - and the two need completely
+  // different fixes, so we need to be able to tell them apart.
+  String raw = http.getString();
+  http.end();
+
   JsonDocument filter;
   JsonObject fa=filter["ac"].add<JsonObject>();
   for(const char* k:{"hex","flight","r","t","alt_baro","gs","track","lat","lon",
                      "squawk","category","dbFlags","baro_rate","geom_rate","emergency"}) fa[k]=true;
 
   JsonDocument doc;
-  auto err=deserializeJson(doc,http.getStream(),DeserializationOption::Filter(filter));
-  http.end();
+  auto err=deserializeJson(doc,raw,DeserializationOption::Filter(filter));
   if(err) return 0;                       // soft: caller may retry once
 
   int before=all.size();
@@ -266,6 +274,11 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
     mergeInto(all,f);
   }
   added = all.size()-before;
+  if(added==0){
+    String snippet = raw.substring(0, 180);
+    snippet.replace('\r',' '); snippet.replace('\n',' ');
+    logf("%s 0 added - body: %s (len %u)", src.name, snippet.c_str(), (unsigned)raw.length());
+  }
   return 1;
 }
 

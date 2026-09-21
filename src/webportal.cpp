@@ -236,7 +236,7 @@ tr.row:active td{background:#1b232c}
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
 
 <div class=card><h2>About</h2>
-  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.27</div>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.28</div>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
 </div>
 

@@ -1,9 +1,28 @@
-# Flight Eye — firmware v3.27 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.28 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build & flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.28
+
+**Diagnostic: adsb.fi returning zero aircraft at a confirmed-correct location**
+- After fixing the tracking centre location (it was left at the factory
+  default), adsb.fi kept logging "returned 0 aircraft" every poll, even
+  though querying the exact same lat/lon/radius directly (outside the
+  device) returns 50+ aircraft at the same moment. That means adsb.fi's
+  server is treating this specific device's requests differently from a
+  normal request for the same URL - most likely some form of silent
+  per-IP or per-client soft block (200 OK with an empty "ac" array,
+  rather than an honest error), though it could also be a subtle parsing
+  bug on our side that only shows up on adsb.fi's real response shape.
+- There was no way to tell those apart from the existing logs, so
+  fetchSource() now buffers the raw response body and, whenever it adds
+  zero aircraft from a 200 OK response, logs a short snippet of exactly
+  what the source sent back. No behaviour change otherwise - this is
+  purely so the next log capture shows the actual bytes adsb.fi is
+  returning to this device, instead of just "0 aircraft".
 
 ## New in v3.27
 
