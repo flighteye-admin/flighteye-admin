@@ -6,8 +6,12 @@ name: Build & release firmware
 # here is the entire "push an update" step.
 on:
   push:
+    # This project's tags are two-part (v3.26), not three-part semver
+    # (v3.26.0) - 'v*.*.*' requires two dots and never matched a real tag
+    # here, so the first several releases silently never built. 'v*.*'
+    # matches the actual v<major>.<minor> convention used throughout.
     tags:
-      - 'v*.*.*'
+      - 'v*.*'
 
 jobs:
   build-and-release:
