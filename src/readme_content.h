@@ -6,12 +6,43 @@
 // firmware is actually flashed. Regenerated whenever README.md changes -
 // this file is generated, don't hand-edit it (edit README.md instead).
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.25 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.26 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.26
+
+**Fix: adsb.lol still rejecting the User-Agent as "too generic"**
+- v3.22's User-Agent added a real contact email but no link, and adsb.lol
+  kept 403ing it. Checked against a confirmed-working real-world example
+  (github.com/NIKX-Tech/karshipta PR #202, which hit and fixed the exact
+  same "too generic" rejection): the accepted shape is
+  `AppName/version (+https://url; contact@email)` - an identifying link
+  *and* contact address, not an address alone. Now that this project has
+  a real public repo (since v3.23), that's the link:
+  `FlightEye-ESP32/3.26 (+https://github.com/flighteye-admin/flighteye-admin; ...)`.
+
+**airplanes.live's 403 is very likely not fixable from this end**
+- Its error message ("Please contact us... include any links, a
+  description of the project") plus multiple reports elsewhere
+  (airplanes-live/api-archive being archived, other projects finding the
+  API "no longer publicly available" for non-feeders) point at this being
+  a deliberate access-control change, not a User-Agent problem. No amount
+  of header-tweaking is likely to clear it - the real options are emailing
+  them as asked, becoming a registered feeder (feeders get free access),
+  or just leaving "airplanes.live" unticked in Data sources on the admin
+  page. adsb.lol and adsb.fi are both free and open and don't need any of
+  that.
+
+**Log: distinguish "genuinely 0 aircraft" from "deduped"**
+- A source that's the first one to succeed in a poll and finds nothing no
+  longer logs as "deduped" (there was nothing to dedupe against yet) - it
+  now says "returned 0 aircraft", so a quiet source at your location
+  reads correctly instead of looking like it silently discarded real
+  traffic.
 
 ## New in v3.25
 

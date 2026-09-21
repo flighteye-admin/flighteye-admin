@@ -12,10 +12,21 @@
 // Sent on every outbound HTTP request. A bare "no User-Agent" or a generic
 // placeholder one gets 403'd by some of these free aggregators (adsb.lol
 // spells out why: "User-Agent too generic; include valid contact info").
-// v3.22: swapped the placeholder GitHub URL for a real contact address -
-// there's no public repo for this project (yet), and an honest email is
-// worth more here than a URL that doesn't resolve to anything relevant.
-static const char* kUserAgent = "FlightEye-ESP32/3.25 (genereynolds.uk+flighteye@gmail.com)";
+// v3.22 tried an email-only contact address, but adsb.lol kept rejecting it
+// as "too generic" - turns out the accepted shape (confirmed against a
+// working real-world example, github.com/NIKX-Tech/karshipta PR #202) is
+// "AppName/version (+https://url; contact@email)" - an app identity *and*
+// a link, not just an address. v3.23 gave this project a real public repo,
+// so v3.26 uses that as the link.
+//
+// Separately: airplanes.live's 403 ("Please contact us... include any
+// links, a description of the project") is very likely NOT fixable by a
+// better User-Agent at all - by all accounts (see README) they closed free
+// anonymous API access to non-feeders at some point and now gate it behind
+// manual registration or becoming a feeder. This UA is still sent in case
+// that ever changes, but don't expect it to clear the block on its own.
+static const char* kUserAgent =
+  "FlightEye-ESP32/3.26 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -450,8 +461,13 @@ bool pollTraffic(){
     }
     if(rc==1){
       used += (used.length()? "+" : "") + String(srcs[i].name);
-      if(added>0) logf("%s +%d (total %d)", srcs[i].name, added, (int)all.size());
-      else        logf("%s deduped (total %d)", srcs[i].name, (int)all.size());
+      // v3.26: "deduped" used to also cover a source genuinely returning 0
+      // aircraft (nothing to actually dedupe against on the first successful
+      // source of a poll) - split so a quiet source at your location doesn't
+      // read like it silently found traffic and threw it all away.
+      if(added>0)          logf("%s +%d (total %d)", srcs[i].name, added, (int)all.size());
+      else if(all.size()>0) logf("%s deduped (total %d)", srcs[i].name, (int)all.size());
+      else                 logf("%s returned 0 aircraft", srcs[i].name);
       if(!cfg.mergeSources) break;
       if(i!=lastEnabled) delay(1100);
     }
