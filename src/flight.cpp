@@ -19,10 +19,10 @@
 // a link, not just an address. v3.23 gave this project a real public repo,
 // so v3.26 uses that as the link.
 //
-// (airplanes.live was dropped entirely as a source in this same v3.26 - see
-// the "airplanes.live removed" note in README.md for why.)
+// (airplanes.live was dropped entirely as a source in this same v3.26, and
+// adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.28 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.29 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -345,7 +345,6 @@ static bool fetchByIdent(const String& ident, Flight& out){
   else { paths[np++]="callsign"; paths[np++]="reg"; paths[np++]="hex"; }
 
   struct { const char* name; const char* base; bool on; } bases[] = {
-    {"adsb.lol",      "https://api.adsb.lol",         cfg.sAdsbLol},
     {"adsb.fi",       "https://opendata.adsb.fi/api", cfg.sAdsbFi},
     {"adsb.one",      "https://api.adsb.one",         cfg.sAdsbOne},
   };
@@ -446,7 +445,6 @@ static bool included(const Flight& f, String& reason){
 // ---------------------------------------------------------------------------
 bool pollTraffic(){
   Source srcs[] = {
-    {"adsb.lol",      "https://api.adsb.lol/v2/point/%.4f/%.4f/%.0f",               cfg.sAdsbLol},
     {"adsb.fi",       "https://opendata.adsb.fi/api/v3/lat/%.4f/lon/%.4f/dist/%.0f",cfg.sAdsbFi},
     {"adsb.one",      "https://api.adsb.one/v2/point/%.4f/%.4f/%.0f",               cfg.sAdsbOne},
   };

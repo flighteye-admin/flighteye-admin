@@ -5,8 +5,8 @@
 
 // Bumped whenever a release goes out. Compared (as major.minor.patch) against
 // GitHub release tag names by ota.cpp - keep it in sync with the git tag you
-// push (tag "v3.28" <-> FW_VERSION "3.28").
-#define FW_VERSION "3.28"
+// push (tag "v3.29" <-> FW_VERSION "3.29").
+#define FW_VERSION "3.29"
 
 // Everything the admin portal can change, persisted to /config.json in LittleFS.
 struct Config {
@@ -34,7 +34,7 @@ struct Config {
   bool   fCommercial=true, fPrivate=false, fCargo=true,
          fMilitary=false, fHeli=false, fEmergency=true, fJumpEmerg=true;
   // data sources (all keyless / free community feeds)
-  bool   sAdsbLol=true, sAdsbFi=true, sAdsbOne=false;   // adsb.one returns 403 for non-feeders; airplanes.live removed in v3.26 (feeder-only now)
+  bool   sAdsbFi=true, sAdsbOne=false;   // adsb.lol removed in v3.29 (feeder-only now, same as airplanes.live/adsb.one); adsb.fi remains the free, open source
   bool   mergeSources=true;             // true = query all enabled & merge; false = failover
   // lock
   bool   lockOn=false; String lockTarget;
@@ -65,7 +65,6 @@ struct Config {
     d["fCommercial"]=fCommercial; d["fPrivate"]=fPrivate;     d["fCargo"]=fCargo;
     d["fMilitary"]=fMilitary;     d["fHeli"]=fHeli;           d["fEmergency"]=fEmergency;
     d["fJumpEmerg"]=fJumpEmerg;
-    d["sAdsbLol"]=sAdsbLol;
     d["sAdsbFi"]=sAdsbFi;         d["sAdsbOne"]=sAdsbOne;      d["mergeSources"]=mergeSources;
     d["lockOn"]=lockOn;           d["lockTarget"]=lockTarget;
     d["atcOn"]=atcOn;             d["atcVol"]=atcVol;
@@ -89,7 +88,6 @@ struct Config {
     fCommercial=d["fCommercial"]|fCommercial; fPrivate=d["fPrivate"]|fPrivate; fCargo=d["fCargo"]|fCargo;
     fMilitary=d["fMilitary"]|fMilitary;      fHeli=d["fHeli"]|fHeli;         fEmergency=d["fEmergency"]|fEmergency;
     fJumpEmerg=d["fJumpEmerg"]|fJumpEmerg;
-    sAdsbLol=d["sAdsbLol"]|sAdsbLol;
     sAdsbFi=d["sAdsbFi"]|sAdsbFi;            sAdsbOne=d["sAdsbOne"]|sAdsbOne;
     mergeSources=d["mergeSources"]|mergeSources;
     lockOn=d["lockOn"]|lockOn;               lockTarget=d["lockTarget"]|lockTarget;

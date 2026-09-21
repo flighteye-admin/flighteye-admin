@@ -1,10 +1,28 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.28 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.29 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.29
+
+**Removed adsb.lol from polling - feeder-only lockdown, same as airplanes.live**
+- adsb.lol kept 403ing every request with "User-Agent too generic; include
+  valid contact info" even with the confirmed-correct contact-info format
+  (see the v3.22/v3.26 notes below). Research turned up two independent,
+  unrelated ESP32/ADS-B projects hitting the identical 403 from adsb.lol in
+  the same week, including one from an already-authenticated active feeder
+  on adsb.lol's own feeder-only endpoint - strong evidence this is a
+  deliberate, broad access-policy change on adsb.lol's side (the same
+  "feed us or no API" model airplanes.live and adsb.one already moved to),
+  not something fixable with a different User-Agent string.
+- adsb.lol is now removed entirely from both the area poll (pollTraffic)
+  and the locked-aircraft global lookup (fetchByIdent), matching how
+  airplanes.live was handled in v3.26. adsb.fi remains the sole free,
+  open, no-feeder-required source; adsb.one stays available as an opt-in
+  toggle for anyone who does end up feeding one of these networks.
 
 ## New in v3.28
 

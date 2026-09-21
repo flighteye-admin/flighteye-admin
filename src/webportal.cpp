@@ -197,7 +197,6 @@ tr.row:active td{background:#1b232c}
 
 <div class=card><h2>Data sources <span class=free>all free, no keys</span></h2>
   <div class=r><label>Merge all sources</label><input id=mergeSources type=checkbox></div>
-  <div class=r><label>adsb.lol</label><input id=sAdsbLol type=checkbox></div>
   <div class=r><label>adsb.fi</label><input id=sAdsbFi type=checkbox></div>
   <div class=r><label>adsb.one</label><input id=sAdsbOne type=checkbox></div>
   <div class="st dim" style="font-size:11px;margin-top:8px">Routes and airline names via adsbdb. Sources rate limited to 1 request per second, personal non-commercial use.</div>
@@ -236,7 +235,7 @@ tr.row:active td{background:#1b232c}
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
 
 <div class=card><h2>About</h2>
-  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.28</div>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.29</div>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
 </div>
 
@@ -254,7 +253,7 @@ var NUM = ["radiusKm","refreshSec","brightness","rotation","pollSec","dwellSec"]
 var FLOATS = ["homeLat","homeLon"];
 var F = ["homeLat","homeLon","radiusKm","featured","pollSec","dwellSec","brightness","rotation",
          "imperial","callsignIata","fCommercial","fCargo","fPrivate","fMilitary","fHeli",
-         "fEmergency","fJumpEmerg","sAdsbLol","sAdsbFi","sAdsbOne",
+         "fEmergency","fJumpEmerg","sAdsbFi","sAdsbOne",
          "mergeSources","lockOn","lockTarget","ledMode","ledNightOff",
          "useStaticIp","staticIp","staticGw","staticMask"];
 
