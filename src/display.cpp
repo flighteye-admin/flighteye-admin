@@ -179,6 +179,18 @@ void drawConnected(const String& ip, const String& host){
   tft.setTextColor(COL_LABEL,TFT_BLACK); tft.drawString("tracking will start shortly",W()/2,196,2);
 }
 
+// v3.36: repaints just the bottom line of the Connected screen above, so the
+// one guaranteed version check on a fresh boot (see main.cpp's CONNECTING
+// case) is visible instead of silently happening off-screen for ~20s while
+// the device already looks idle. Call drawConnected() again afterwards to
+// put the normal "tracking will start shortly" line back.
+void drawCheckingUpdate(){
+  tft.fillRect(0,186,W(),20,TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LABEL,TFT_BLACK);
+  tft.drawString("checking for updates...",W()/2,196,2);
+}
+
 static void fmtAlt(const Flight& f,char* b,size_t n){
   if(f.onGround){ snprintf(b,n,"LANDED"); return; }   // ADS-B reports alt_baro "ground"
   if(f.altFt<=0){ snprintf(b,n,"GND"); return; }

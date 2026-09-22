@@ -17,5 +17,10 @@ enum OtaState { OTA_IDLE, OTA_CHECKING, OTA_DOWNLOADING, OTA_UP_TO_DATE, OTA_FAI
 
 void   otaInit();               // call once from setup()
 void   otaLoop();                // call every loop(); no-ops unless Wi-Fi is connected
+// v3.36: runs the version check immediately (blocking - same as any other
+// check) instead of waiting for the ~20s-after-boot timer inside otaLoop().
+// Marks the check as done, so otaLoop() won't also fire its own initial
+// check afterwards. Call once, right when the Connected screen is shown.
+void   otaCheckOnConnect();
 String otaStateString();        // "idle" | "checking" | "downloading" | "up-to-date" | "failed"
 String otaLastCheckedAgo();     // "3m ago" / "never", for the admin status JSON

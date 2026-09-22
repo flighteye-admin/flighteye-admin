@@ -8,6 +8,9 @@ void drawSplash();
 void drawSetup(const String& ssid, const String& ip);
 void drawConnecting(int step, const String& msg, int pct);
 void drawConnected(const String& ip, const String& host);
+void drawCheckingUpdate();   // v3.36: overwrites the Connected screen's bottom
+                              // line with "checking for updates..." while a
+                              // fresh-boot version check runs
 void drawFlightCard(const Flight& f, bool live, int pos=0, int total=0);
 void drawNoFlights(const char* source, const String& ip);
 void drawError(const String& msg);

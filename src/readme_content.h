@@ -1,10 +1,27 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.35 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.36 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.36
+
+**Update check now visible on the Connected screen after a power cycle**
+- Good news: v3.35's fixes appear to have worked - it downloaded v3.34
+  cleanly and has been crash-free since, no more resets during the OTA
+  download itself.
+- The one guaranteed version check on every boot used to fire silently on
+  an internal ~20s-after-boot timer, which could land on any screen -
+  often the flight card, well after the device already looked "up and
+  running." Now it happens right when the Connected screen appears (after
+  a power cycle or reset), with a small "checking for updates..." message
+  in place of the usual "tracking will start shortly" line while it runs.
+  If an update is found, it flows straight into the v3.32-v3.34 splash /
+  progress bar / tap-to-restart screens already in place; if not, the
+  Connected screen's normal message comes back for the rest of its usual
+  few seconds before tracking starts.
 
 ## New in v3.35
 

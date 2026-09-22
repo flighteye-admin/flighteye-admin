@@ -206,13 +206,20 @@ void otaInit() {
 
 void otaLoop() {
   if (WiFi.status() != WL_CONNECTED) return;
-  // First check ~20s after boot (let Wi-Fi/NTP settle), then every
-  // OTA_CHECK_INTERVAL_MS after that.
+  // v3.36: the ~20s-after-boot fallback here is now just that - a fallback,
+  // in case otaCheckOnConnect() was never called (e.g. Wi-Fi took a while
+  // and this fires first) or the device reaches RUNNING some other way.
+  // The Connected screen normally already covers "check once on boot" by
+  // calling otaCheckOnConnect() directly, which sets s_everChecked itself.
   if (!s_everChecked) {
     if (millis() > 20000) checkNow();
     return;
   }
   if (millis() - s_lastCheckMs > OTA_CHECK_INTERVAL_MS) checkNow();
+}
+
+void otaCheckOnConnect() {
+  checkNow();   // sets s_everChecked/s_lastCheckMs itself, same as any other check
 }
 
 String otaStateString() {

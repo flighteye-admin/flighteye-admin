@@ -471,6 +471,18 @@ void loop(){
         logf("Admin: http://flighteye.local");
         drawConnected(WiFi.localIP().toString(), String(HOSTNAME)+".local");
         portalBeginSTA();
+
+        // v3.36: check for a firmware update right here, on the Connected
+        // screen after a fresh boot, instead of a silent ~20s-after-boot
+        // timer that could land on any screen (often the flight card,
+        // already mid-dwell). otaCheckOnConnect() is blocking, same as any
+        // other version check - if it finds and installs an update, it
+        // takes over the screen itself and this point is never reached
+        // again (the device restarts, from a tap or the built-in timeout).
+        drawCheckingUpdate();
+        otaCheckOnConnect();
+        drawConnected(WiFi.localIP().toString(), String(HOSTNAME)+".local");  // restore the normal line
+
         delay(4000);
         state=RUNNING; lastPoll=0; lastDwell=0;
         break;

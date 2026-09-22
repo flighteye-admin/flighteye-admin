@@ -5,8 +5,8 @@
 
 // Bumped whenever a release goes out. Compared (as major.minor.patch) against
 // GitHub release tag names by ota.cpp - keep it in sync with the git tag you
-// push (tag "v3.35" <-> FW_VERSION "3.35").
-#define FW_VERSION "3.35"
+// push (tag "v3.36" <-> FW_VERSION "3.36").
+#define FW_VERSION "3.36"
 
 // Everything the admin portal can change, persisted to /config.json in LittleFS.
 struct Config {
