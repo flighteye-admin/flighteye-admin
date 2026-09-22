@@ -22,6 +22,10 @@ void drawWifiHelp(const String& ssid, uint32_t secs);   // shown after ~60s of f
 void drawResetCountdown(int heldSec);                   // BOOT button held
 void drawResetting(const String& what);
 
+// v3.32: OTA update splash - shown full-screen while a new release downloads/flashes
+void drawOtaSplash(const String& newVer, const String& curVer);
+void drawOtaProgress(int pct);
+
 // v3.10: second page of the device-info screen (tap again to reach it)
 void drawLedKey();
 

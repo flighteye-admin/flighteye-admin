@@ -532,6 +532,50 @@ void drawResetting(const String& what){
 }
 
 // ---------------------------------------------------------------------------
+// v3.32: OTA update splash. Shown once when a newer release is found and the
+// device starts downloading + flashing it, so the "why did the screen change"
+// moment reads as reassuring progress rather than a hang. drawOtaSplash()
+// paints the static frame once; drawOtaProgress() repaints just the bar fill
+// and percentage as Update.onProgress() reports bytes written, same pattern
+// as drawConnecting()'s progress bar.
+// ---------------------------------------------------------------------------
+static int s_otaLastPct = -1;
+
+void drawOtaSplash(const String& newVer, const String& curVer){
+  s_otaLastPct = -1;
+  tft.fillScreen(TFT_BLACK);
+  int cx = W()/2;
+  splashPlane(cx, 34, 16, COL_CALLSIGN);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_VALUE, TFT_BLACK);
+  tft.drawString("New version found!", cx, 68, 4);
+  tft.setTextColor(COL_ROUTE, TFT_BLACK);
+  tft.drawString("v" + curVer + "  -->  v" + newVer, cx, 96, 4);
+  tft.setTextColor(COL_LABEL, TFT_BLACK);
+  tft.drawString("Installing new version...", cx, 128, 2);
+  tft.drawString("Please wait, don't unplug me", cx, 150, 2);
+  int bw = W()-48;
+  tft.drawRect(24, 176, bw, 12, COL_LABEL);
+  tft.fillRect(0, 198, W(), 20, TFT_BLACK);
+  tft.setTextColor(COL_LIVE, TFT_BLACK);
+  tft.drawString("0%", cx, 206, 2);
+}
+
+void drawOtaProgress(int pct){
+  pct = constrain(pct, 0, 100);
+  if(pct == s_otaLastPct) return;
+  s_otaLastPct = pct;
+  int cx = W()/2;
+  int bw = W()-48;
+  tft.fillRect(25, 177, bw-2, 10, TFT_BLACK);
+  tft.fillRect(25, 177, (bw-2)*pct/100, 10, COL_ROUTE);
+  tft.fillRect(0, 198, W(), 20, TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LIVE, TFT_BLACK);
+  tft.drawString(String(pct) + "%", cx, 206, 2);
+}
+
+// ---------------------------------------------------------------------------
 // Device info screen. The QR encodes the admin URL by IP address, so a phone
 // camera opens the page directly - no mDNS, no typing. This is the reliable
 // route on Android, where browsers cannot resolve .local names at all.

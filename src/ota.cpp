@@ -1,6 +1,7 @@
 #include "ota.h"
 #include "config.h"
 #include "devlog.h"
+#include "display.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -59,6 +60,12 @@ static bool downloadAndFlash(const String& url, size_t expectedLen) {
     https.end();
     return false;
   }
+
+  // Drives drawOtaProgress() from actual bytes flashed, not bytes downloaded -
+  // Update.writeStream() reads and writes in lockstep so the two track closely.
+  Update.onProgress([](size_t written, size_t total){
+    if (total > 0) drawOtaProgress((int)((written * 100UL) / total));
+  });
 
   WiFiClient* stream = https.getStreamPtr();
   size_t written = Update.writeStream(*stream);
@@ -141,6 +148,9 @@ static void checkNow() {
 
   logf("ota: %s available (running %s) - downloading", tag.c_str(), FW_VERSION);
   s_state = OTA_DOWNLOADING;
+  String tagClean = tag;
+  if (tagClean.length() && (tagClean[0] == 'v' || tagClean[0] == 'V')) tagClean.remove(0, 1);
+  drawOtaSplash(tagClean, FW_VERSION);
   if (downloadAndFlash(assetUrl, assetLen)) {
     delay(300);
     ESP.restart();

@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26, and
 // adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.31 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.32 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";

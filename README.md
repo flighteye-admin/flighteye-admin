@@ -1,9 +1,22 @@
-# Flight Eye — firmware v3.31 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.32 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build & flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.32
+
+**Comfort messaging during OTA updates**
+- When the device finds a newer release and starts installing it, the
+  screen now shows a proper "New version found!" splash instead of just
+  going quiet - a little plane icon, the version jump (`v3.31 --> v3.32`),
+  and a reassuring "Please wait, don't unplug me" line.
+- A live progress bar fills in as the new firmware is written to flash,
+  with a percentage readout underneath, so it's obvious the device is
+  working rather than stuck.
+- Purely cosmetic - the OTA logic itself (check, download, flash, reboot)
+  is unchanged from v3.31.
 
 ## New in v3.31
 
