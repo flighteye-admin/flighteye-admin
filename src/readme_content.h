@@ -1,10 +1,108 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.36 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.37 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.37
+
+**Root cause of the crash-loop found and fixed - it was never the OTA download**
+- Got a USB Serial Monitor capture of the actual crash (thank you for that -
+  guessing further without it wasn't getting anywhere). It's a clean,
+  deterministic `abort()`, identical on every single occurrence, and it
+  happens during ordinary polling - not during an OTA download at all. The
+  v3.31/v3.33/v3.35 fixes were all real heap-safety improvements, just not
+  the fix for this particular crash.
+- Rebuilt this exact firmware locally to get a debug symbol file and decode
+  the crash. It's `std::vector&lt;Flight&gt;::push_back()`, inside the per-source
+  JSON parsing loop in `fetchSource()`, running out of *contiguous* heap
+  while growing its own backing storage. The list of aircraft seen this poll
+  had no size limit and no reserved capacity - it grew one aircraft at a
+  time, and each time it ran out of room it had to ask the allocator for a
+  bigger contiguous block. Right after boot, with WiFi/TLS setup and JSON
+  parsing buffers still fresh in a fragmented heap, that request could get
+  refused. This firmware is built without C++ exceptions, so a refused
+  allocation like that has no catchable `std::bad_alloc` to recover from -
+  it just calls `abort()`, which is the reboot you were seeing.
+- Fix: that list now reserves its capacity once, up front, sized to what the
+  heap can actually spare at that exact moment (and skips that one poll
+  entirely, logging why, if heap is too tight even for a modest reservation)
+  - then refuses to grow past that reservation for the rest of the poll.
+  Nothing about what the device shows changes: the screen only ever uses the
+  nearest 25 aircraft anyway.
+- Because the device was stuck crash-looping every few seconds, it could
+  never get through a v3.36 OTA download on its own (the v3.33 heap guard
+  correctly kept refusing to start one). If yours is in that state, this
+  version needs a USB reflash rather than an over-the-air update; once it's
+  on v3.37 it goes back to updating itself normally.
+
+**Fix: "View README / changelog" coming up blank**
+- Same underlying issue as above, in a different spot: that page built one
+  big String (page head + the whole README + page tail, ~40KB and only
+  ever growing as more changelog entries get added) before sending it - a
+  single allocation that large has no real margin on this device and had
+  no heap guard at all. It now streams straight out of flash in small
+  chunks instead, so it never needs one big block of memory and keeps
+  working regardless of how long README.md gets.
+
+**Fix: screen going blank for a minute or two during polling**
+- Reported after a bit more testing: the flight card and radar would
+  occasionally go completely blank for a minute or two, then a similar list
+  of aircraft would reappear. Not a crash - the log showed adsb.fi genuinely
+  returning nothing for a couple of polls in a row, and the code cleared the
+  whole display the instant any single poll came back empty.
+- Two changes: first, the three places a source could fail without saying
+  why (a connection that never got going, a 200 OK response that wasn't
+  actually JSON, a JSON body that failed to parse) now all log what
+  happened, instead of just a bare "no data (retried)". Second, and the
+  actual fix for the blank screen: a poll that comes back with nothing no
+  longer clears the display right away. It keeps showing the last known
+  aircraft until a real gap builds up (five minutes with nothing), since a
+  60-90 second upstream hiccup shouldn't make it look like every aircraft
+  it was tracking has vanished.
+
+**Cargo flights now get their own icon**
+- Dedicated freighters (FedEx, UPS, Cargolux, DHL, Lufthansa Cargo, Atlas
+  Air and the other cargo-only operators this was already detecting for the
+  cargo filter toggle) were sharing the plain airliner glyph, colour and LED
+  - same airframe, same ADS-B category, so nothing in the data itself says
+  "freighter" without also looking at who's flying it.
+- They now get their own icon (the same jet silhouette, with a small cargo
+  pod added under the belly so it's still clearly a big jet, just visibly
+  different), their own radar-blip and LED colour (orange on screen, and on
+  the physical LED where amber/yellow was the one colour combination not
+  already spoken for), and their own row on the LED key screen - on the
+  device, the admin page's live radar, and its traffic table.
+
+**Fix: rare crash during polling, `Guru Meditation Error (LoadProhibited)` in `strlen`**
+- Thank you for the USB serial capture with the actual crash dump - that's
+  what cracked this one. It's a genuine `abort()`, but a completely
+  different bug from the `std::vector` one fixed earlier in this version:
+  this one is inside Arduino's own `String` class.
+- Under a low/fragmented heap - most dangerously right at the exact moment
+  a big JSON parse has *already* failed with "NoMemory", which is when
+  free memory is at its tightest - a `String` operation (`substring()`,
+  `+=`, string concatenation) can itself fail to allocate. When that
+  happens, the `String` doesn't throw or crash there and then; it quietly
+  turns into an "invalidated" string that looks harmlessly empty but whose
+  underlying pointer is `nullptr` instead of pointing at an empty string.
+  The device's own diagnostic logging added earlier in this version - built
+  to explain exactly this kind of low-heap failure - was, ironically, the
+  most likely place to hit it: it builds a short snippet of the response
+  body to log right after a JSON parse failure, which is precisely the
+  moment heap is most starved. Handing that `nullptr` to the logging
+  function (or to any other plain C function - `sscanf`, `snprintf`, the
+  QR-code library) crashes immediately, because none of those check for a
+  null string pointer before reading it - which is exactly the
+  `LoadProhibited` crash in `strlen`, reading address `0`, in your capture.
+- Fix: added one small null-safe guard (`nz()`) and applied it everywhere a
+  `String`'s contents get handed to a plain C function across the whole
+  firmware (all the logging calls, `sscanf`, `snprintf`, the QR-code
+  generator, `WiFi.begin`) - about two dozen call sites in total, not just
+  the one this crash happened to hit. A failed allocation there now quietly
+  degrades to an empty string instead of crashing the device.
 
 ## New in v3.36
 

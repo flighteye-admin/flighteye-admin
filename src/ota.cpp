@@ -30,8 +30,8 @@ static bool isNewer(const String& tagIn, const String& current) {
   String tag = tagIn;
   if (tag.length() && (tag[0] == 'v' || tag[0] == 'V')) tag.remove(0, 1);
   int ta = 0, tb = 0, tc = 0, ca = 0, cb = 0, cc = 0;
-  sscanf(tag.c_str(),     "%d.%d.%d", &ta, &tb, &tc);
-  sscanf(current.c_str(), "%d.%d.%d", &ca, &cb, &cc);
+  sscanf(nz(tag),     "%d.%d.%d", &ta, &tb, &tc);
+  sscanf(nz(current), "%d.%d.%d", &ca, &cb, &cc);
   if (ta != ca) return ta > ca;
   if (tb != cb) return tb > cb;
   return tc > cc;
@@ -146,7 +146,7 @@ static void checkNow() {
   DeserializationError err = deserializeJson(doc, https.getStream());
   https.end();
   if (err) {
-    logf("ota: release JSON parse failed (%s)", err.c_str());
+    logf("ota: release JSON parse failed (%s)", nz(err.c_str()));
     s_state = OTA_FAILED;
     return;
   }
@@ -159,7 +159,7 @@ static void checkNow() {
   }
 
   if (!isNewer(tag, FW_VERSION)) {
-    logf("ota: up to date (running %s, latest %s)", FW_VERSION, tag.c_str());
+    logf("ota: up to date (running %s, latest %s)", FW_VERSION, nz(tag));
     s_state = OTA_UP_TO_DATE;
     return;
   }
@@ -174,12 +174,12 @@ static void checkNow() {
     }
   }
   if (!assetUrl.length()) {
-    logf("ota: release %s has no '%s' asset", tag.c_str(), OTA_ASSET_NAME);
+    logf("ota: release %s has no '%s' asset", nz(tag), OTA_ASSET_NAME);
     s_state = OTA_FAILED;
     return;
   }
 
-  logf("ota: %s available (running %s) - downloading", tag.c_str(), FW_VERSION);
+  logf("ota: %s available (running %s) - downloading", nz(tag), FW_VERSION);
   s_state = OTA_DOWNLOADING;
   String tagClean = tag;
   if (tagClean.length() && (tagClean[0] == 'v' || tagClean[0] == 'V')) tagClean.remove(0, 1);

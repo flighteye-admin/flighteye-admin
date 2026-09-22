@@ -25,6 +25,13 @@ struct TrafficRow {
 
 #define TRAFFIC_MAX 25
 
+// v3.37: hard cap on how many aircraft a single poll will ever hold in `all`
+// (see mergeInto()/pollTraffic() in flight.cpp). Only the nearest TRAFFIC_MAX
+// are ever shown, so this is just a generous multiple of that - it exists to
+// put a ceiling on std::vector<Flight>'s backing-array reallocations, not to
+// change what the device displays in any normal-sized airspace.
+#define ALL_TRACKED_MAX 120
+
 // v3.12: a single aircraft's position on the radar screen, dead-reckoned to
 // "now" from its last known fix. Only one String field (callsign, needed so
 // a tap on the radar can lock onto it) to keep this cheap to rebuild on

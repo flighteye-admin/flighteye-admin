@@ -145,7 +145,8 @@ static void ledUpdate(){
   else if(!strcmp(k,"heli")) led(true,false,true);
   else if(!strcmp(k,"light")||!strcmp(k,"bizjet")) led(false,true,false);
   else if(!strcmp(k,"turboprop")) led(false,true,true);
-  else led(false,false,true);                                     // airliner / cargo
+  else if(!strcmp(k,"cargo")) led(true,true,false);                // v3.37: yellow, was lumped in with airliner
+  else led(false,false,true);                                     // airliner
 }
 
 // ---------- reset actions (also called from the admin page) ----------
@@ -246,11 +247,11 @@ static void handleTap(int sx,int sy){
   // phone's own Wi-Fi details screen and compare the two).
   infoPage=1; infoShownAt=millis();
   char net[40];
-  snprintf(net,sizeof(net),"gw %s /%d%s", WiFi.gatewayIP().toString().c_str(),
+  snprintf(net,sizeof(net),"gw %s /%d%s", nz(WiFi.gatewayIP().toString()),
            maskBits(WiFi.subnetMask()), cfg.useStaticIp?" (fixed)":" (DHCP)");
   drawDeviceInfo(WiFi.localIP().toString(), cfg.wifiSsid, (int)WiFi.RSSI(),
                  millis()/1000, String("v")+FW_VERSION, String(net));
-  logf("info screen shown - admin at http://%s", WiFi.localIP().toString().c_str());
+  logf("info screen shown - admin at http://%s", nz(WiFi.localIP().toString()));
 }
 
 static void pollTouch(){
@@ -337,20 +338,20 @@ static void startConnect(){
       if((ipn & mk) == (gwn & mk)){
         dns = gw;
         if(WiFi.config(ip,gw,mask,dns)) logf("static IP %s (gw %s /%d)",
-             cfg.staticIp.c_str(), cfg.staticGw.c_str(), maskBits(mask));
+             nz(cfg.staticIp), nz(cfg.staticGw), maskBits(mask));
         else logf("static IP config rejected by driver - using DHCP");
       } else {
         logf("FIXED IP IGNORED: %s and gateway %s aren't on the same subnet "
              "(mask %s) - falling back to DHCP. This usually means the fixed "
              "IP was set up for a router that has since changed; update or "
              "turn off 'Use a fixed IP' on the admin page.",
-             cfg.staticIp.c_str(), cfg.staticGw.c_str(), cfg.staticMask.c_str());
+             nz(cfg.staticIp), nz(cfg.staticGw), nz(cfg.staticMask));
       }
     } else {
       logf("fixed IP fields don't parse as addresses - using DHCP");
     }
   }
-  WiFi.begin(cfg.wifiSsid.c_str(), cfg.wifiPass.c_str());
+  WiFi.begin(nz(cfg.wifiSsid), nz(cfg.wifiPass));
   state=CONNECTING; connectStart=millis();
   drawConnecting(0,"Saving settings",10); delay(300);
   drawConnecting(1,"Connecting to "+cfg.wifiSsid,40);
@@ -467,7 +468,7 @@ void loop(){
           MDNS.addService("http","tcp",80);
           logf("mDNS up (.local resolution needs OS/browser support - IP or QR always works)");
         } else logf("mDNS failed to start");
-        logf("WiFi ok: %s  rssi %d", WiFi.localIP().toString().c_str(), (int)WiFi.RSSI());
+        logf("WiFi ok: %s  rssi %d", nz(WiFi.localIP().toString()), (int)WiFi.RSSI());
         logf("Admin: http://flighteye.local");
         drawConnected(WiFi.localIP().toString(), String(HOSTNAME)+".local");
         portalBeginSTA();
@@ -497,7 +498,7 @@ void loop(){
       }
       if(millis()-lastKick > 30000){             // periodic reconnect attempt
         lastKick=millis();
-        WiFi.disconnect(); WiFi.begin(cfg.wifiSsid.c_str(), cfg.wifiPass.c_str());
+        WiFi.disconnect(); WiFi.begin(nz(cfg.wifiSsid), nz(cfg.wifiPass));
         logf("retrying Wi-Fi (%us)", (unsigned)elapsed);
       }
       break;

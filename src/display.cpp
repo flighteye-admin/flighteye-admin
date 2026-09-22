@@ -1,5 +1,6 @@
 #include "display.h"
 #include "config.h"
+#include "devlog.h"   // v3.37: nz() - null-safe String::c_str() guard, see devlog.h
 #include <TFT_eSPI.h>
 #include <qrcode.h>
 
@@ -59,6 +60,21 @@ static void icon(int cx,int cy,int s,const char* cat){
     R(-4,h*0.55,2.6,5); R(1.4,h*0.55,2.6,5);
   } else if(!strcmp(cat,"light")){
     R(-h,-4,s,4); R(-6,-h,12,3); R(-5,h-5,10,3);
+  } else if(!strcmp(cat,"cargo")){
+    // v3.37: same big-jet silhouette as the "airliner" case below (a
+    // freighter's airframe looks no different) with a boxy cargo pod slung
+    // under the belly - a deliberate visual cue, driven by the callsign's
+    // operator prefix (see isCargoPrefix() in flight.cpp), so a
+    // FedEx/UPS/Cargolux/etc. flight doesn't look identical to a passenger
+    // airliner on screen. The pod is drawn clearly wider than the fuselage
+    // line and outlined in the slot's own background colour so it reads as
+    // something bolted on, not just a thicker bit of fuselage.
+    tft.fillTriangle(cx,cy-h*0.3, cx-h,cy+h*0.45, cx,cy+h*0.2,c);
+    tft.fillTriangle(cx,cy-h*0.3, cx+h,cy+h*0.45, cx,cy+h*0.2,c);
+    tft.fillTriangle(cx,cy+h*0.4, cx-h*0.45,cy+h, cx,cy+h*0.85,c);
+    tft.fillTriangle(cx,cy+h*0.4, cx+h*0.45,cy+h, cx,cy+h*0.85,c);
+    R(-6,-1,12,7);
+    tft.drawRect(cx-6,cy-1,12,7,0x0841);
   } else {
     tft.fillTriangle(cx,cy-h*0.3, cx-h,cy+h*0.45, cx,cy+h*0.2,c);
     tft.fillTriangle(cx,cy-h*0.3, cx+h,cy+h*0.45, cx,cy+h*0.2,c);
@@ -136,7 +152,7 @@ void drawSetup(const String& ssid, const String& ip){
   tft.fillScreen(TFT_BLACK); header();
   QRCode qr; uint8_t buf[qrcode_getBufferSize(3)];
   String payload="WIFI:S:"+ssid+";T:nopass;;";
-  qrcode_initText(&qr,buf,3,ECC_MEDIUM,payload.c_str());
+  qrcode_initText(&qr,buf,3,ECC_MEDIUM,nz(payload));
   int scale=3, qs=qr.size*scale, ox=14, oy=52;
   tft.fillRect(ox-4,oy-4,qs+8,qs+8,TFT_WHITE);
   for(uint8_t y=0;y<qr.size;y++)for(uint8_t x=0;x<qr.size;x++)
@@ -617,7 +633,7 @@ void drawDeviceInfo(const String& ip, const String& ssid, int rssi,
 
   String url = "http://" + ip;
   QRCode qr; uint8_t buf[qrcode_getBufferSize(3)];
-  qrcode_initText(&qr, buf, 3, ECC_MEDIUM, url.c_str());
+  qrcode_initText(&qr, buf, 3, ECC_MEDIUM, nz(url));
   int scale = 3, qs = qr.size*scale, ox = 12, oy = 46;
   tft.fillRect(ox-5, oy-5, qs+10, qs+10, TFT_WHITE);
   for(uint8_t y=0;y<qr.size;y++)
@@ -642,7 +658,7 @@ void drawDeviceInfo(const String& ip, const String& ssid, int rssi,
 
   tft.setTextColor(COL_LABEL,TFT_BLACK);
   char l[48];
-  snprintf(l,sizeof(l),"%s  %ddBm",ssid.c_str(),rssi);
+  snprintf(l,sizeof(l),"%s  %ddBm",nz(ssid),rssi);
   tft.drawString(l,tx,128,2);
   snprintf(l,sizeof(l),"up %uh %um",(unsigned)(uptimeSec/3600),(unsigned)((uptimeSec/60)%60));
   tft.drawString(l,tx,146,2);
@@ -680,7 +696,8 @@ void drawLedKey(){
     {TFT_MAGENTA, "Helicopter",                   false},
     {TFT_GREEN,   "Private / GA / bizjet",        false},
     {TFT_CYAN,    "Turboprop",                    false},
-    {TFT_BLUE,    "Airliner / cargo",             false},
+    {TFT_BLUE,    "Airliner",                     false},
+    {TFT_YELLOW,  "Cargo",                        false},
     {TFT_BLUE,    "No traffic in range",          true},
     {TFT_GREEN,   "Status-only mode",             false},
     {TFT_WHITE,   "Proximity - faster=closer",    true},
@@ -734,7 +751,8 @@ static uint16_t radarBlipColour(const RadarBlip& b){
   if(!strcmp(b.icon,"heli"))      return TFT_MAGENTA;
   if(!strcmp(b.icon,"light")||!strcmp(b.icon,"bizjet")) return TFT_GREEN;
   if(!strcmp(b.icon,"turboprop")) return TFT_CYAN;
-  return TFT_BLUE;                                       // airliner / cargo
+  if(!strcmp(b.icon,"cargo"))     return TFT_ORANGE;     // v3.37: was lumped in with airliner (blue)
+  return TFT_BLUE;                                       // airliner
 }
 
 // v3.30: a small heading-aligned aircraft glyph (fuselage + wings +

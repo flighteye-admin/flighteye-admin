@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26, and
 // adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.36 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.37 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -30,6 +30,14 @@ static std::vector<TrafficRow> s_traffic;
 static uint32_t s_lastPollAt = 0;    // millis() of the last successful poll, for dead reckoning
 static uint32_t s_lastPollEpoch = 0; // wall-clock UTC seconds of the last poll (0 = unknown/not synced)
 uint32_t lastPollEpoch(){ return s_lastPollEpoch; }
+
+// v3.37: how long a poll that returned no aircraft is allowed to leave the
+// last known display queue on screen before we give up and actually clear
+// it (see pollTraffic()). Long enough to ride out a normal transient
+// upstream hiccup (adsb.fi/adsb.one occasionally return nothing for a poll
+// or two), short enough that the screen doesn't keep showing aircraft that
+// have genuinely long since left the area.
+static const uint32_t kStaleQueueMs = 5UL*60UL*1000UL;
 
 // The display queue: aircraft that passed the filters, held between master
 // polls so the screen can rotate through them without re-fetching.
@@ -45,7 +53,7 @@ bool lockWasDescendingLow(){ return s_lastAlt>0 && s_lastAlt<6000 && s_lastVs<-1
 bool lockedInRange(){ return s_lockedFound; }
 
 int         aircraftInRange() { return s_count; }
-const char* activeSource()    { return s_source.c_str(); }
+const char* activeSource()    { return nz(s_source); }
 const std::vector<TrafficRow>& trafficList(){ return s_traffic; }
 int         queueCount()    { return (int)s_queue.size(); }
 int         queuePosition() { return s_queue.empty()? 0 : s_qpos+1; }
@@ -132,7 +140,14 @@ static const char* classify(const String& cat, const String& type,
   if(cat=="A2")            return "light";
   if(cat=="A3"||cat=="A4"||cat=="A5"){
     if(hasAny(T,{"AT4","AT7","AT5","DH8","DHC","SF3","D328"})) return "turboprop";
-    return "airliner";
+    // v3.37: dedicated freighters (747F, MD-11F, 767F, ...) fly the exact
+    // same category codes and type designators as their passenger versions -
+    // ADS-B itself has no "this is a freighter" flag. The callsign's
+    // operator prefix does, though: isCargoPrefix() below already drives
+    // the cargo filter toggle in included() - reuse it here so cargo
+    // flights get their own icon/colour instead of silently looking like
+    // an ordinary passenger airliner.
+    return isCargoPrefix(cs) ? "cargo" : "airliner";
   }
   if(hasAny(T,{"H145","H160","EC","AS35","AS55","AS65","R22","R44","R66","B06","A109","A119","A139","A169","A189","PUMA","H175","S76","S92","EH10","LYNX","UH60"})) return "heli";
   if(hasAny(T,{"AT4","AT7","AT5","DH8","DHC","SF3","SB20","B190","E110","D228","J328","TBM","PC12","C208","SW4","L410","P180"})) return "turboprop";
@@ -142,7 +157,7 @@ static const char* classify(const String& cat, const String& type,
     String a=upper(cs), b=upper(reg); b.replace("-","");
     if(a==b) return "light";
   }
-  return "airliner";
+  return isCargoPrefix(cs) ? "cargo" : "airliner";
 }
 
 // ---- route enrichment: adsbdb.com first, hexdb.io as a fallback ------------
@@ -246,7 +261,7 @@ static void enrich(Flight& f, bool tryHexdbFallback){
   }
 
   if(!heapOkForTls()){
-    logf("enrich: skipped %s (heap block %uB)", f.callsign.c_str(), largestFreeBlock());
+    logf("enrich: skipped %s (heap block %uB)", nz(f.callsign), largestFreeBlock());
     if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign);
     return;
   }
@@ -302,6 +317,21 @@ static void mergeInto(std::vector<Flight>& all, Flight& f){
       return;
     }
   }
+  // v3.37: this was the actual cause of the "abort() at 0x401a6147" crash
+  // that kept happening on the very first poll after boot (see CHANGELOG).
+  // `all` used to grow with plain push_back() and no cap - std::vector grows
+  // its backing array by reallocating a bigger *contiguous* block each time
+  // it runs out of room, exactly like the TLS handshake allocation devlog.h
+  // already warns about above, just for a bigger, less predictable size as
+  // more aircraft came in. A dense poll right after boot (WiFi/TLS buffers,
+  // the JSON body, the parsed doc all still competing for heap) could ask
+  // for a contiguous block the allocator refused - and because this firmware
+  // builds without C++ exceptions, that allocation failure had no catchable
+  // std::bad_alloc to recover from; it just crashed.
+  // pollTraffic() now reserve()s `all` once, up front, sized to what the
+  // heap can actually spare - so refusing to grow past that reservation here
+  // means this push_back can never trigger another reallocation.
+  if(all.size() >= all.capacity()) return;
   all.push_back(f);
 }
 
@@ -314,7 +344,12 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
   if(!heapOkForTls()){ logf("%s: skipped, low heap (block %uB)", src.name, largestFreeBlock()); return 0; }
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http; http.setConnectTimeout(5000); http.setTimeout(7000);
-  if(!http.begin(c,url)) return -1;
+  // v3.37: this used to fail completely silently - "no data (retried)" in
+  // the log with nothing at all explaining why. http.begin() only fails on
+  // a malformed URL or being unable to even start the request (DNS/TCP
+  // setup), so this is worth knowing about separately from an actual HTTP
+  // error response below.
+  if(!http.begin(c,url)){ logf("%s: request setup failed (bad URL or connection)", src.name); return -1; }
   http.addHeader("User-Agent",kUserAgent);
   int code=http.GET();
   if(code!=200){
@@ -325,13 +360,20 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
     String body=http.getString();
     body.replace('\r',' '); body.replace('\n',' ');
     http.end();
-    logf("%s HTTP %d: %s",src.name,code,body.c_str());
+    logf("%s HTTP %d: %s",src.name,code,nz(body));
     return -1;
   }
 
   // Guard against HTML error pages / truncated bodies being fed to the parser.
   String ctype = http.header("Content-Type");
-  if(ctype.length() && ctype.indexOf("json")<0){ http.end(); return 0; }
+  if(ctype.length() && ctype.indexOf("json")<0){
+    // v3.37: was silent - "no data (retried)" with no clue this was actually
+    // a 200 OK carrying something that isn't JSON (an HTML error/interstitial
+    // page is the usual culprit).
+    logf("%s: non-JSON response (content-type: %s)", src.name, nz(ctype));
+    http.end();
+    return 0;
+  }
 
   // v3.28: buffer the raw body instead of streaming straight into the parser,
   // so that if this source ends up adding zero aircraft we can log a snippet
@@ -349,7 +391,16 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
 
   JsonDocument doc;
   auto err=deserializeJson(doc,raw,DeserializationOption::Filter(filter));
-  if(err) return 0;                       // soft: caller may retry once
+  if(err){
+    // v3.37: also used to be silent. A truncated/garbled body (a network
+    // hiccup mid-transfer, or the source briefly sending something broken)
+    // is a very different problem from "genuinely no aircraft nearby" or a
+    // low-heap skip, and used to look identical to both in the log.
+    String snippet = raw.substring(0, 100);
+    snippet.replace('\r',' '); snippet.replace('\n',' ');
+    logf("%s: JSON parse failed: %s (body: %s)", src.name, nz(err.c_str()), nz(snippet));
+    return 0;                             // soft: caller may retry once
+  }
 
   int before=all.size();
   for(JsonObject a: doc["ac"].as<JsonArray>()){
@@ -377,7 +428,7 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
   if(added==0){
     String snippet = raw.substring(0, 180);
     snippet.replace('\r',' '); snippet.replace('\n',' ');
-    logf("%s 0 added - body: %s (len %u)", src.name, snippet.c_str(), (unsigned)raw.length());
+    logf("%s 0 added - body: %s (len %u)", src.name, nz(snippet), (unsigned)raw.length());
   }
   return 1;
 }
@@ -436,7 +487,7 @@ void resetLockCache(){ s_lockBase=-1; s_lockPath=""; }
 static bool fetchByIdent(const String& ident, Flight& out){
   if(ident.length()==0) return false;
   if(!heapOkForTls()){
-    logf("lock: skipped %s (heap block %uB)", ident.c_str(), largestFreeBlock());
+    logf("lock: skipped %s (heap block %uB)", nz(ident), largestFreeBlock());
     return false;
   }
   String id = ident; id.trim(); id.toUpperCase();
@@ -485,7 +536,7 @@ static bool fetchByIdent(const String& ident, Flight& out){
         http.end();
         if(got){
           s_lockBase=bi; s_lockPath=paths[i];
-          logf("lock: found %s via %s/%s", ident.c_str(), bases[bi].name, paths[i]);
+          logf("lock: found %s via %s/%s", nz(ident), bases[bi].name, paths[i]);
           return true;
         }
       } else http.end();
@@ -558,6 +609,29 @@ bool pollTraffic(){
   for(int i=0;i<N;i++) if(srcs[i].enabled) lastEnabled=i;
 
   std::vector<Flight> all;
+  // v3.37: reserve `all`'s backing storage in one shot, sized to what the
+  // heap can actually spare right now, instead of letting it grow one
+  // push_back() at a time inside mergeInto() - see the comment there for
+  // why that used to crash the device. TRAFFIC_MAX is the real floor (nothing
+  // beyond the nearest TRAFFIC_MAX aircraft is ever shown); if the heap can't
+  // safely spare even that much right now, skip this poll the same way every
+  // other heap guard in this file does, rather than proceed with nowhere
+  // safe to put results.
+  {
+    size_t want = ALL_TRACKED_MAX;
+    size_t bytes = want * sizeof(Flight);
+    while(want > TRAFFIC_MAX && largestFreeBlock() < bytes + 20000){
+      want /= 2;
+      bytes = want * sizeof(Flight);
+    }
+    if(want < TRAFFIC_MAX) want = TRAFFIC_MAX;
+    bytes = want * sizeof(Flight);
+    if(largestFreeBlock() < bytes + 20000){
+      logf("poll: skipped, low heap (block %uB)", largestFreeBlock());
+      return false;
+    }
+    all.reserve(want);
+  }
   String used="";
   for(int i=0;i<N;i++){
     if(!srcs[i].enabled) continue;
@@ -581,14 +655,30 @@ bool pollTraffic(){
       if(i!=lastEnabled) delay(1100);
     }
   }
-  s_source = used.length()? used : "none";
-  s_count  = all.size();
-
   if(all.empty()){
-    s_traffic.clear(); s_queue.clear(); s_qpos=-1;
-    logf("poll: no aircraft returned");
+    // v3.37: this used to unconditionally wipe s_queue/s_traffic (and
+    // s_source/s_count) on the very first empty poll - so a single ~60-90s
+    // upstream hiccup (adsb.fi returning nothing, or the JSON-parse/heap
+    // failures now logged above) blanked the flight card and radar even
+    // though every aircraft on it was probably still up there. Keep showing
+    // the last real picture instead, and only actually clear once it's been
+    // genuinely stale for a while - by then the aircraft may well have moved
+    // on for real, so a blank screen is honest again rather than misleading.
+    uint32_t now = millis();
+    uint32_t staleFor = s_lastPollAt? (now - s_lastPollAt) : 0;
+    if(s_lastPollAt==0 || staleFor > kStaleQueueMs){
+      s_traffic.clear(); s_queue.clear(); s_qpos=-1;
+      s_source="none"; s_count=0;
+      logf("poll: no aircraft returned, clearing display (stale %lus)", (unsigned long)(staleFor/1000));
+    } else {
+      logf("poll: no aircraft returned, keeping last %d known (%lus old)",
+           (int)s_queue.size(), (unsigned long)(staleFor/1000));
+    }
     return false;
   }
+
+  s_source = used.length()? used : "none";
+  s_count  = all.size();
 
   for(auto& f:all){
     f.icon     = classify(f.cat,f.type,f.dbFlags,f.callsign,f.reg);
@@ -648,9 +738,9 @@ bool pollTraffic(){
       if(fetchByIdent(cfg.lockTarget,lf)){ s_locked=lf; s_lockedFound=true; }
     }
     if(s_lockedFound)
-      logf("lock %s: tracking, %.0fkm away", cfg.lockTarget.c_str(), s_locked.distKm);
+      logf("lock %s: tracking, %.0fkm away", nz(cfg.lockTarget), s_locked.distKm);
     else
-      logf("lock %s: no signal", cfg.lockTarget.c_str());
+      logf("lock %s: no signal", nz(cfg.lockTarget));
   }
 
   // ---- admin snapshot ----
@@ -704,7 +794,7 @@ bool selectNext(Flight& out){
   for(auto& t:s_traffic) t.featured = (t.hex==f.hex);
 
   logf("[%d/%d] %s (%s) %.1fkm", s_qpos+1, (int)s_queue.size(),
-       f.callsign.c_str(), f.icon, f.distKm);
+       nz(f.callsign), f.icon, f.distKm);
   out=f;
   return true;
 }

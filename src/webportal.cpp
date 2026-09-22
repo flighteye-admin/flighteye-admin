@@ -235,7 +235,7 @@ tr.row:active td{background:#1b232c}
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
 
 <div class=card><h2>About</h2>
-  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.36</div>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.37</div>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
 </div>
 
@@ -463,7 +463,8 @@ function blipColour(b){
   if(b.icon=='heli') return '#FF00FF';
   if(b.icon=='light' || b.icon=='bizjet') return '#00FF00';
   if(b.icon=='turboprop') return '#00FFFF';
-  return '#3366FF';                 // airliner / cargo
+  if(b.icon=='cargo') return '#FF9500';   // v3.37: was lumped in with airliner
+  return '#3366FF';                 // airliner
 }
 function renderRadar(d){
   var cv = el('radarCanvas'); if(!cv) return;
@@ -523,6 +524,7 @@ function icon(k){
   if(k=='bizjet') return 'J';
   if(k=='light') return 'L';
   if(k=='turboprop') return 'T';
+  if(k=='cargo') return 'C';
   return 'A';
 }
 function loadTraffic(){
@@ -773,11 +775,41 @@ void portalBeginSTA(){
   server.on("/api/status",HTTP_GET,handleStatus);
   server.on("/api/config",HTTP_GET,handleGetConfig);
   server.on("/readme",HTTP_GET,[](AsyncWebServerRequest* r){
-    String page; page.reserve(sizeof(README_PAGE_HEAD)+sizeof(kReadmeMdEscaped)+sizeof(README_PAGE_TAIL));
-    page += FPSTR(README_PAGE_HEAD);
-    page += FPSTR(kReadmeMdEscaped);
-    page += FPSTR(README_PAGE_TAIL);
-    r->send(200,"text/html",page);
+    // v3.37: this used to build one big String (head+body+tail concatenated,
+    // ~40KB and growing with every changelog entry) before sending it - a
+    // single allocation that size needs is squarely in "TLS handshake"
+    // territory (see devlog.h's comment on largestFreeBlock()) and had no
+    // heap guard at all. That's almost certainly why this page was coming
+    // up blank rather than a full crash: AsyncWebServer likely failed the
+    // allocation and sent an empty body instead. Stream it straight out of
+    // PROGMEM in small chunks instead - no buffer anywhere near that size,
+    // so this page keeps working no matter how long README.md gets.
+    static const size_t headLen  = sizeof(README_PAGE_HEAD)-1;
+    static const size_t bodyLen  = sizeof(kReadmeMdEscaped)-1;
+    static const size_t tailLen  = sizeof(README_PAGE_TAIL)-1;
+    static const size_t totalLen = headLen+bodyLen+tailLen;
+    AsyncWebServerResponse* res = r->beginResponse("text/html", totalLen,
+      [](uint8_t* buf, size_t maxLen, size_t index) -> size_t {
+        size_t written = 0;
+        while(written < maxLen && index < totalLen){
+          size_t n;
+          if(index < headLen){
+            n = min(maxLen-written, headLen-index);
+            memcpy_P(buf+written, README_PAGE_HEAD+index, n);
+          } else if(index < headLen+bodyLen){
+            size_t off = index-headLen;
+            n = min(maxLen-written, bodyLen-off);
+            memcpy_P(buf+written, kReadmeMdEscaped+off, n);
+          } else {
+            size_t off = index-headLen-bodyLen;
+            n = min(maxLen-written, tailLen-off);
+            memcpy_P(buf+written, README_PAGE_TAIL+off, n);
+          }
+          written += n; index += n;
+        }
+        return written;
+      });
+    r->send(res);
   });
   server.on("/api/log",HTTP_GET,[](AsyncWebServerRequest* r){
     r->send(200,"application/json",logAsJson());
