@@ -11,6 +11,7 @@
 #include "webportal.h"
 #include "devlog.h"
 #include "ota.h"
+#include "touch.h"
 
 Config    cfg;
 TFT_eSPI  tft;
@@ -187,6 +188,9 @@ static bool touchRaw(int& x,int& y){
   if(n<2) return false;
   x=xs/n; y=ys/n; return true;
 }
+// v3.34: just "is a finger down right now", no coordinates - used by ota.cpp
+// to wait for a confirming tap once a downloaded update has finished flashing.
+bool touchDown(){ return digitalRead(T_IRQ)==LOW; }
 // The touch panel always reports in the display's NATIVE portrait orientation,
 // while TFT_eSPI rotates only what we draw. So for the landscape rotations the
 // axes have to be swapped before the numbers mean anything on screen.

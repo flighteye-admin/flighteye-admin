@@ -25,6 +25,7 @@ void drawResetting(const String& what);
 // v3.32: OTA update splash - shown full-screen while a new release downloads/flashes
 void drawOtaSplash(const String& newVer, const String& curVer);
 void drawOtaProgress(int pct);
+void drawOtaDone(const String& newVer);   // v3.34: shown once flashed, waiting for a confirming tap
 
 // v3.10: second page of the device-info screen (tap again to reach it)
 void drawLedKey();

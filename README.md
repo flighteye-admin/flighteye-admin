@@ -1,9 +1,29 @@
-# Flight Eye — firmware v3.33 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.34 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build & flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.34
+
+**Tap the screen to restart after an update**
+- After downloading and flashing a new version, the device used to restart
+  itself half a second later - fine most of the time, but it meant an
+  update landing while you happened to be watching the screen came and
+  went almost too fast to register, with barely a glimpse of the "New
+  version found!" splash from v3.32 before the reboot.
+- It now shows "Update installed! Now running vX.XX - tap the screen to
+  restart" and waits for a tap before rebooting, so if you're watching,
+  you get to actually see it happen and choose the moment. If nobody's
+  there to tap it (most updates land in the background), it restarts on
+  its own after 3 minutes rather than sitting there forever.
+- Also explains why the v3.32 splash itself wasn't seen: v3.32 and v3.33
+  were released only ~13 minutes apart, and the device was almost
+  certainly still on v3.31 (which has no splash code at all) when it next
+  checked - so it jumped straight to v3.33 in one hop, and only firmware
+  that's already running can draw a splash for its own download. v3.33 has
+  had the splash code since v3.32; this update onward should show it.
 
 ## New in v3.33
 

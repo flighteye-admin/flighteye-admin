@@ -2,6 +2,7 @@
 #include "config.h"
 #include "devlog.h"
 #include "display.h"
+#include "touch.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -162,7 +163,13 @@ static void checkNow() {
   if (tagClean.length() && (tagClean[0] == 'v' || tagClean[0] == 'V')) tagClean.remove(0, 1);
   drawOtaSplash(tagClean, FW_VERSION);
   if (downloadAndFlash(assetUrl, assetLen)) {
-    delay(300);
+    logf("ota: flashed OK - waiting for a tap to restart");
+    drawOtaDone(tagClean);
+    delay(500);                                   // let a stray touch that woke the screen release
+    uint32_t waitStart = millis();
+    const uint32_t kMaxWaitMs = 3UL*60UL*1000UL;   // don't strand an unattended board forever
+    while (!touchDown() && millis() - waitStart < kMaxWaitMs) delay(50);
+    delay(150);                                    // debounce the confirming tap itself
     ESP.restart();
   } else {
     s_state = OTA_FAILED;

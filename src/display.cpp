@@ -575,6 +575,25 @@ void drawOtaProgress(int pct){
   tft.drawString(String(pct) + "%", cx, 206, 2);
 }
 
+// v3.34: shown once the download finishes flashing, instead of restarting
+// straight away - stays up until the screen is tapped (with a timed fallback
+// restart, so a board nobody's watching doesn't just sit here forever). Most
+// updates land in the background with nobody looking at the device, so this
+// also doubles as visible confirmation that an update actually happened.
+void drawOtaDone(const String& newVer){
+  tft.fillScreen(TFT_BLACK);
+  int cx = W()/2;
+  splashPlane(cx, 34, 16, COL_LIVE);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LIVE, TFT_BLACK);
+  tft.drawString("Update installed!", cx, 68, 4);
+  tft.setTextColor(COL_ROUTE, TFT_BLACK);
+  tft.drawString("Now running v" + newVer, cx, 96, 4);
+  tft.setTextColor(COL_LABEL, TFT_BLACK);
+  tft.drawString("Tap the screen to restart", cx, 140, 2);
+  tft.drawString("(or it restarts itself shortly)", cx, 162, 2);
+}
+
 // ---------------------------------------------------------------------------
 // Device info screen. The QR encodes the admin URL by IP address, so a phone
 // camera opens the page directly - no mDNS, no typing. This is the reliable
