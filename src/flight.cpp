@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26, and
 // adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.30 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.31 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -208,7 +208,17 @@ static bool hexdbEnrich(Flight& f){
   return true;
 }
 
-static void enrich(Flight& f){
+// v3.31: tryHexdbFallback is only ever passed true for the locked aircraft
+// (see the call sites below). Early on, this ran for every aircraft that
+// rotated onto screen - with 50+ aircraft in range near a busy airport, that
+// meant a new, never-before-seen callsign roughly every dwellSec, each one
+// adsbdb misses on stacking up to 3 more back-to-back secure connections on
+// top. Repeated back-to-back TLS connections are a known source of random
+// ESP32 reboots (well documented in the arduino-esp32 core's own issue
+// tracker), and the timing lined up exactly with when this started - so the
+// fallback now only fires for the one aircraft you've deliberately locked
+// onto, not for everything passing through the rotation.
+static void enrich(Flight& f, bool tryHexdbFallback){
   if(f.callsign.length()<3){ if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign); return; }
   if(f.callsign==s_key){ applyCache(f); return; }
 
@@ -237,7 +247,7 @@ static void enrich(Flight& f){
   }
   if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign);
 
-  if(!gotRoute && hexdbEnrich(f)) gotRoute=true;
+  if(!gotRoute && tryHexdbFallback && hexdbEnrich(f)) gotRoute=true;
 
   s_key=f.callsign; s_org=f.originIata; s_dst=f.destIata;
   s_orgCity=f.originCity; s_dstCity=f.destCity; s_air=f.airline; s_iata=f.csIata;
@@ -641,7 +651,7 @@ bool selectNext(Flight& out){
   // Locked: return the locked aircraft, wherever it was found.
   if(cfg.lockOn && cfg.lockTarget.length()){
     if(!s_lockedFound) return false;            // caller shows the waiting screen
-    if(!s_locked.enriched){ enrich(s_locked); s_locked.enriched=true; }
+    if(!s_locked.enriched){ enrich(s_locked,true); s_locked.enriched=true; }
     for(auto& t:s_traffic) t.featured = (t.hex==s_locked.hex);
     out=s_locked;
     return true;
@@ -651,7 +661,7 @@ bool selectNext(Flight& out){
   if(s_qpos >= (int)s_queue.size()) s_qpos = 0;   // wrap around
 
   Flight& f = s_queue[s_qpos];
-  if(!f.enriched){ enrich(f); f.enriched=true; }
+  if(!f.enriched){ enrich(f,false); f.enriched=true; }
 
   for(auto& t:s_traffic) t.featured = (t.hex==f.hex);
 

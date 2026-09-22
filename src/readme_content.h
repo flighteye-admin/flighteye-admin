@@ -1,10 +1,32 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.30 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.31 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.31
+
+**Fix: random reboots caused by v3.30's hexdb.io fallback**
+- Within a day of v3.30 shipping, the device started rebooting - first at a
+  rough ~6 minute cadence, then randomly. Free heap checked out fine (it
+  was fluctuating in a healthy 100-175KB band, not draining toward zero),
+  which ruled out a simple memory leak.
+- The real cause: `enrich()`'s new hexdb.io fallback wasn't actually scoped
+  to locked aircraft the way it was meant to be - it ran for every aircraft
+  that rotated onto screen. Near a location with 50+ aircraft in range,
+  that's a new, never-before-seen callsign roughly every `dwellSec`, and
+  each one adsbdb missed on stacked up to 3 more back-to-back secure (TLS)
+  connections on top of the usual poll traffic. Repeated back-to-back TLS
+  connections are a well-documented source of intermittent/random ESP32
+  reboots in the arduino-esp32 core itself - and the timing here lined up
+  exactly with when the reboots started.
+- `enrich()` now only attempts the hexdb.io fallback for the aircraft
+  you've actually locked onto - matching what was asked for in the first
+  place. The normal on-screen rotation goes back to adsbdb-only, same as
+  before v3.30, so routine browsing no longer stacks extra TLS connections
+  at all.
 
 ## New in v3.30
 
