@@ -235,7 +235,7 @@ tr.row:active td{background:#1b232c}
 <div class=card><h2>Device log</h2><pre id=log class=log>loading...</pre></div>
 
 <div class=card><h2>About</h2>
-  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.32</div>
+  <div class="st dim" style="margin-bottom:8px">Flight Eye v3.33</div>
   <button class=danger style="color:#c6ccd4;border-color:#2c3742;background:#0c1116" onclick="window.open('/readme','_blank')">View README / changelog</button>
 </div>
 
@@ -326,7 +326,7 @@ function upTime(s){ return Math.floor(s/3600)+'h '+(Math.floor(s/60)%60)+'m'; }
 function status(){
   fetch('/api/status').then(function(r){ return r.json(); }).then(function(s){
     var h = 'host <b>'+s.host+'</b> / <b>'+s.ip+'</b> / '+s.rssi+' dBm / up '+upTime(s.uptime)
-          + ' / heap '+Math.round(s.heap/1024)+'KB<br>'
+          + ' / heap '+Math.round(s.heap/1024)+'KB (block '+Math.round(s.heapBlock/1024)+'KB)<br>'
           + 'gw <b>'+s.gw+'</b> / mask <b>'+s.mask+'</b>'
           + ' <span class=dim>('+(s.fixedIp?'fixed':'DHCP')+')</span><br>'
           + 'last poll <b>'+(s.lastPollEpoch? new Date(s.lastPollEpoch*1000).toLocaleString() : 'not yet synced')+'</b><br>'
@@ -687,6 +687,10 @@ static void handleStatus(AsyncWebServerRequest* r){
   d["count"]  = aircraftInRange();
   d["uptime"] = (uint32_t)(millis()/1000);
   d["heap"]   = (uint32_t)ESP.getFreeHeap();
+  // v3.33: total free heap can look healthy while still being too fragmented
+  // for a TLS handshake's one big allocation to succeed - this is the
+  // number that actually predicts that (see devlog.h).
+  d["heapBlock"]  = largestFreeBlock();
   d["fwVersion"]  = FW_VERSION;
   d["otaState"]   = otaStateString();
   d["otaChecked"] = otaLastCheckedAgo();

@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26, and
 // adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.32 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.33 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -166,6 +166,7 @@ static void applyCache(Flight& f){
 // empty, so the extra requests are rare, not per-poll.
 static bool hexdbAirport(const String& icao, String& iata, String& name){
   if(icao.length()!=4) return false;
+  if(!heapOkForTls()){ logf("hexdb: skipped (heap block %uB)", largestFreeBlock()); return false; }
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http; http.setConnectTimeout(4000); http.setTimeout(4000);
   if(!http.begin(c,"https://hexdb.io/api/v1/airport/icao/"+icao)) return false;
@@ -182,6 +183,7 @@ static bool hexdbAirport(const String& icao, String& iata, String& name){
   return ok;
 }
 static bool hexdbEnrich(Flight& f){
+  if(!heapOkForTls()){ logf("hexdb: skipped (heap block %uB)", largestFreeBlock()); return false; }
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http; http.setConnectTimeout(4000); http.setTimeout(4000);
   if(!http.begin(c,"https://hexdb.io/api/v1/route/icao/"+f.callsign)) return false;
@@ -218,9 +220,36 @@ static bool hexdbEnrich(Flight& f){
 // tracker), and the timing lined up exactly with when this started - so the
 // fallback now only fires for the one aircraft you've deliberately locked
 // onto, not for everything passing through the rotation.
+// v3.33: the rotation branch (tryHexdbFallback=false) used to open a fresh
+// adsbdb TLS connection for literally every never-before-seen aircraft that
+// dwelled onto screen - at an 8s dwell and 25+ distinct aircraft in a busy
+// hour, that's a new handshake every few seconds, hour after hour. That's
+// the same "repeated back-to-back TLS connections" pattern that caused the
+// v3.30 hexdb crash, just spread out more - v3.31 only removed the *extra*
+// hexdb calls on top of it, not this baseline one. A locked aircraft is
+// re-enriched at most once per callsign change (see selectNext()) so it's
+// exempt from this; the rotation gets a floor between attempts instead.
+static uint32_t s_lastRotationEnrichMs = 0;
+static const uint32_t kRotationEnrichGapMs = 12000;
+
 static void enrich(Flight& f, bool tryHexdbFallback){
   if(f.callsign.length()<3){ if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign); return; }
   if(f.callsign==s_key){ applyCache(f); return; }
+
+  if(!tryHexdbFallback){
+    uint32_t now=millis();
+    if(now - s_lastRotationEnrichMs < kRotationEnrichGapMs){
+      if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign);
+      return;                          // too soon - this one just shows without route/airline
+    }
+    s_lastRotationEnrichMs = now;
+  }
+
+  if(!heapOkForTls()){
+    logf("enrich: skipped %s (heap block %uB)", f.callsign.c_str(), largestFreeBlock());
+    if(!f.airline.length()) f.airline=airlineFromPrefix(f.callsign);
+    return;
+  }
 
   bool gotRoute=false;
   WiFiClientSecure c; c.setInsecure();
@@ -282,6 +311,7 @@ static int fetchSource(const Source& src, std::vector<Flight>& all, int& added){
   char url[192];
   snprintf(url,sizeof(url),src.fmt,cfg.homeLat,cfg.homeLon,nm);
 
+  if(!heapOkForTls()){ logf("%s: skipped, low heap (block %uB)", src.name, largestFreeBlock()); return 0; }
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http; http.setConnectTimeout(5000); http.setTimeout(7000);
   if(!http.begin(c,url)) return -1;
@@ -405,6 +435,10 @@ void resetLockCache(){ s_lockBase=-1; s_lockPath=""; }
 
 static bool fetchByIdent(const String& ident, Flight& out){
   if(ident.length()==0) return false;
+  if(!heapOkForTls()){
+    logf("lock: skipped %s (heap block %uB)", ident.c_str(), largestFreeBlock());
+    return false;
+  }
   String id = ident; id.trim(); id.toUpperCase();
 
   // Try the most specific endpoint first for the shape of the identifier.
@@ -638,6 +672,10 @@ bool pollTraffic(){
   }
 
   logf("poll: %d seen, %d in rotation", (int)all.size(), (int)s_queue.size());
+  // v3.33: the number that actually predicts a TLS crash is the largest free
+  // *block*, not total free heap (see devlog.h) - logged every poll (60s) so
+  // a fragmentation trend shows up here well before it causes a reset.
+  logf("heap: %uB free, %uB largest block", (unsigned)ESP.getFreeHeap(), (unsigned)largestFreeBlock());
   return !s_queue.empty();
 }
 

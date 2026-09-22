@@ -1,10 +1,37 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.32 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.33 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.33
+
+**Fix: remaining random reboots - heap-fragmentation guard, and less route-lookup TLS traffic**
+- v3.31 stopped the hexdb.io route fallback from running for every aircraft
+  in the normal rotation, but left the underlying adsbdb.com route/airline
+  lookup untouched - and that one always ran once for every new aircraft
+  that dwelled onto screen. In a busy location (25+ distinct aircraft an
+  hour, an 8s dwell), that's still a fresh secure (TLS) connection every
+  few seconds, hour after hour - the same crash pattern as v3.30, just
+  spread out more thinly instead of removed.
+- Two changes this time. First, a proper safety net: every place this
+  firmware opens a secure connection now checks the actual *largest free
+  heap block* first (not just total free heap - a healthy-looking total can
+  still be too fragmented to satisfy the one big allocation a TLS handshake
+  needs) and skips the attempt rather than risking a crash if it's too low.
+  That reading is also now shown on the admin page next to the existing
+  heap figure, and logged every poll, so heap fragmentation is visible
+  before it causes a reset rather than only after.
+- Second, the actual fix: the rotation's route/airline lookup is now
+  rate-limited to at most one new secure connection every 12 seconds,
+  regardless of how many new aircraft rotate through. A locked/followed
+  aircraft is unaffected (it was already only re-enriched when its
+  callsign changes, not every poll). The one visible trade-off: during a
+  very busy stretch, some aircraft in the rotation may show without an
+  airline name or route for that turn rather than every single one being
+  looked up immediately - a lot better than the device resetting.
 
 ## New in v3.32
 

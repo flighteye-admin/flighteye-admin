@@ -36,6 +36,10 @@ static bool isNewer(const String& tagIn, const String& current) {
 }
 
 static bool downloadAndFlash(const String& url, size_t expectedLen) {
+  if (!heapOkForTls()) {
+    logf("ota: deferring download, low heap (block %uB)", largestFreeBlock());
+    return false;
+  }
   WiFiClientSecure client;
   prepClient(client);
   HTTPClient https;
@@ -88,6 +92,12 @@ static void checkNow() {
   s_state = OTA_CHECKING;
   s_lastCheckMs = millis();
   s_everChecked = true;
+
+  if (!heapOkForTls()) {
+    logf("ota: check skipped, low heap (block %uB)", largestFreeBlock());
+    s_state = OTA_FAILED;
+    return;
+  }
 
   WiFiClientSecure client;
   prepClient(client);

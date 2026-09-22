@@ -1,5 +1,18 @@
 #include "devlog.h"
 #include <ArduinoJson.h>
+#include <esp_heap_caps.h>
+
+// Real-world mbedTLS handshake allocations on this core run up to ~40-45KB
+// in one block; 60KB gives that real margin rather than a number picked to
+// just barely clear it.
+static const uint32_t kMinFreeBlockForTls = 60000;
+
+uint32_t largestFreeBlock(){
+  return (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+}
+bool heapOkForTls(){
+  return largestFreeBlock() >= kMinFreeBlockForTls;
+}
 
 static char  s_buf[LOG_LINES][LOG_LEN];
 static int   s_head=0, s_count=0;
