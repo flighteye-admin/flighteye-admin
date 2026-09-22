@@ -3,6 +3,7 @@
 #include "devlog.h"
 #include "display.h"
 #include "touch.h"
+#include "flight.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -37,10 +38,17 @@ static bool isNewer(const String& tagIn, const String& current) {
 }
 
 static bool downloadAndFlash(const String& url, size_t expectedLen) {
-  if (!heapOkForTls()) {
+  // v3.35: this download holds a TLS session open for the whole transfer
+  // while also writing to flash - a lot more sustained memory pressure than
+  // the app's usual quick JSON requests - so it asks for real extra
+  // headroom up front (heapOkForOta(), not just heapOkForTls()), and frees
+  // what this app can spare (the traffic/queue vectors) right before
+  // starting, rather than letting them sit allocated through the download.
+  if (!heapOkForOta()) {
     logf("ota: deferring download, low heap (block %uB)", largestFreeBlock());
     return false;
   }
+  freeForOta();
   WiFiClientSecure client;
   prepClient(client);
   HTTPClient https;
@@ -68,7 +76,21 @@ static bool downloadAndFlash(const String& url, size_t expectedLen) {
 
   // Drives drawOtaProgress() from actual bytes flashed, not bytes downloaded -
   // Update.writeStream() reads and writes in lockstep so the two track closely.
+  // v3.35: also doubles as a heap watchdog for the download itself - if the
+  // largest free block drops below the safe TLS floor partway through
+  // (known ESP32 Arduino issue: a long-held HTTPS stream + concurrent flash
+  // writes can run a fragmented heap right out from under you), abort the
+  // flash cleanly here rather than let it crash. Update.abort() makes the
+  // next internal write fail, so writeStream() returns short and the
+  // existing written-vs-expected check below reports it as a normal failure.
   Update.onProgress([](size_t written, size_t total){
+    static bool abortedForHeap = false;
+    if (!abortedForHeap && !heapOkForTls()) {
+      abortedForHeap = true;
+      logf("ota: aborting mid-download, heap block dropped to %uB", largestFreeBlock());
+      Update.abort();
+      return;
+    }
     if (total > 0) drawOtaProgress((int)((written * 100UL) / total));
   });
 

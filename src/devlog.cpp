@@ -14,6 +14,11 @@ bool heapOkForTls(){
   return largestFreeBlock() >= kMinFreeBlockForTls;
 }
 
+static const uint32_t kMinFreeBlockForOta = 100000;
+bool heapOkForOta(){
+  return largestFreeBlock() >= kMinFreeBlockForOta;
+}
+
 static char  s_buf[LOG_LINES][LOG_LEN];
 static int   s_head=0, s_count=0;
 

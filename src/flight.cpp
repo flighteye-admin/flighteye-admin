@@ -22,7 +22,7 @@
 // (airplanes.live was dropped entirely as a source in this same v3.26, and
 // adsb.lol itself followed in v3.29 - both went feeder-only; see README.md.)
 static const char* kUserAgent =
-  "FlightEye-ESP32/3.34 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
+  "FlightEye-ESP32/3.35 (+https://github.com/flighteye-admin/flighteye-admin; genereynolds.uk+flighteye@gmail.com)";
 
 static int    s_count = 0;
 static String s_source = "-";
@@ -716,6 +716,14 @@ bool selectNext(Flight& out){
 // radar this small over a few hundred milliseconds, so it's fine to call
 // this on every redraw tick - it's just a handful of trig calls per aircraft.
 // ---------------------------------------------------------------------------
+// v3.35: see flight.h - swap-with-empty actually releases the vectors'
+// heap-allocated backing storage, unlike clear() alone.
+void freeForOta(){
+  std::vector<Flight>().swap(s_queue);
+  std::vector<TrafficRow>().swap(s_traffic);
+  s_qpos = -1;
+}
+
 void radarSnapshot(std::vector<RadarBlip>& out){
   out.clear();
   uint32_t now = millis();

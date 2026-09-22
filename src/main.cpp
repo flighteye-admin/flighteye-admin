@@ -447,6 +447,13 @@ void loop(){
 
     case CONNECTING: {
       if(WiFi.status()==WL_CONNECTED){
+        // v3.35: modem sleep trades a little power for periodic latency
+        // spikes on incoming packets - fine for the small polling requests
+        // this device makes most of the time, but a bad combination with a
+        // long-held HTTPS stream (the multi-hundred-KB OTA download) where
+        // it can let the receive buffer back up. This device is mains
+        // powered, so there's no real reason to keep power-save on.
+        WiFi.setSleep(false);
         drawConnecting(2,"Fetching live flights",80);
         // Hostname is set in startConnect(), before begin() - see the note
         // there. mDNS ".local" resolution itself still depends on the

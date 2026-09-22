@@ -1,10 +1,39 @@
 static const char kReadmeMdEscaped[] PROGMEM = R"FERM(
-# Flight Eye — firmware v3.34 (ESP32 CYD / ESP32-2432S028R)
+# Flight Eye — firmware v3.35 (ESP32 CYD / ESP32-2432S028R)
 
 ## Build &amp; flash
 Open the folder in VS Code with PlatformIO, click Upload. Serial Monitor at 115200.
 Admin page: **http://flighteye.local** (or the IP shown on the Connected screen,
 or tap the device screen for a QR code that opens it directly).
+
+## New in v3.35
+
+**Fix attempt: crashes during the OTA download itself**
+- Confirmed (thank you for the detail) that this device is genuinely on
+  v3.33 and crashes *during* the firmware download, at a random point each
+  time - not during normal polling like v3.30-v3.31's issue. That's a
+  different, narrower problem: holding a secure connection open for the
+  whole ~1.4MB transfer while simultaneously writing to flash is real,
+  sustained memory pressure, well outside what the app's usual small quick
+  JSON requests need. This is a documented pattern in the ESP32 Arduino
+  project's own issue tracker (repeated reports of OTA-over-HTTPS crashing
+  partway through on low/fragmented heap) - not unique to this device.
+- There's no buffer-size control exposed on this networking library to
+  shrink its memory footprint directly (checked against the current
+  library source), so this update goes at it from three angles instead:
+  turning off Wi-Fi's power-save mode once connected (it trades a little
+  power for periodic latency spikes on incoming data - fine normally, a
+  bad combination with a long download; this device is mains powered
+  anyway), freeing everything this app can spare right before the download
+  starts, and requiring more heap headroom up front before attempting one
+  at all.
+- Also adds a safety net for mid-download: if the heap still drops
+  dangerously low partway through, the update now aborts itself cleanly
+  and retries at the next check instead of taking the whole device down
+  with it. If it still crashes after this, that's valuable information in
+  itself - it would point away from memory pressure and toward something
+  else, and a USB + Serial Monitor capture during an update attempt would
+  show the actual crash reason directly rather than guessing further.
 
 ## New in v3.34
 

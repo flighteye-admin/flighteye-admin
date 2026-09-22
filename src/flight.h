@@ -61,3 +61,10 @@ bool         lockWasDescendingLow();   // last seen low and descending?
 // math against the last poll's data, no network - cheap enough to call on
 // every radar redraw.
 void         radarSnapshot(std::vector<RadarBlip>& out);
+
+// v3.35: releases the traffic/queue vectors' backing storage (not just
+// clearing them) right before an OTA download starts, so the download's
+// concurrent HTTPS receive + flash write has as much contiguous heap as
+// this device can spare. Safe to call any time - pollTraffic() rebuilds
+// both from scratch on the next poll anyway.
+void         freeForOta();
